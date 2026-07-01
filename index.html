@@ -1,0 +1,2828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+<title>Liluxsaru</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: #000; }
+
+/* ── THEME VARIABLES (set by JS at load) ── */
+:root {
+  --bg:        #000000;
+  --primary:   #7dd9ff;
+  --bright:    #ccf2ff;
+  --dim:       #336677;
+  --border:    #2a6a8a;
+  --glow:      rgba(125,217,255,0.35);
+  --err:       #ff6b6b;
+  --ink:       #000000;
+  --outline:   #000000;
+}
+
+.fo-wrap { width:100%; height:100dvh; background:#000; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+
+.fo-screen {
+  width:100%; height:100%;
+  background: var(--bg);
+  display:flex; flex-direction:column;
+  padding:24px 28px 16px;
+  position:relative; overflow:hidden;
+  font-family:'Share Tech Mono','Courier New',monospace;
+  color: var(--primary);
+  transition: background 0.3s;
+}
+
+.scanlines {
+  position:absolute; inset:0; pointer-events:none; z-index:10;
+  background: repeating-linear-gradient(to bottom, transparent 0px, transparent 2px, rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px);
+}
+.vignette {
+  position:absolute; inset:0; pointer-events:none; z-index:11;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.7) 100%);
+}
+.vhs-rgb {
+  position:absolute; inset:0; pointer-events:none; z-index:9;
+  background:repeating-linear-gradient(90deg,var(--glow) 0px,transparent 1px,transparent 3px);
+  opacity:0.05;
+}
+
+/* ── GLITTER / SHIMMER SYSTEM ── */
+
+/* Sparkle particle canvas — sits above everything except overlays */
+#glitterCanvas {
+  position:absolute; inset:0; pointer-events:none; z-index:13;
+  width:100%; height:100%;
+}
+
+/* Title prismatic shimmer — subtle rainbow sheen that slides across */
+.fo-title {
+  font-size:clamp(18px,4vw,26px); letter-spacing:8px;
+  color:var(--bright);
+  text-shadow:0 0 10px var(--glow),0 0 28px var(--glow);
+  text-transform:uppercase;
+  position:relative;
+  overflow:hidden;
+}
+
+/* Cursor gets a prismatic glint pulse on top of blink */
+.cursor-block {
+  display:inline-block; width:9px; height:13px;
+  background:var(--primary);
+  box-shadow:0 0 8px var(--glow), 0 0 2px #fff;
+  vertical-align:middle;
+  animation:blink 1.1s step-end infinite, cursor-glint 4s ease-in-out infinite;
+}
+@keyframes cursor-glint {
+  0%,100% { box-shadow:0 0 8px var(--glow), 0 0 2px #fff; }
+  40%     { box-shadow:0 0 14px var(--glow), 0 0 6px #fff, 0 0 2px rgba(255,255,255,0.9); }
+  50%     { box-shadow:0 0 18px var(--glow), 0 0 10px #fff, 0 0 4px rgba(255,220,255,0.9); }
+  60%     { box-shadow:0 0 14px var(--glow), 0 0 6px #fff, 0 0 2px rgba(255,255,255,0.9); }
+}
+
+/* Border lines get a slow glimmer pulse */
+.fo-header {
+  text-align:center; padding-bottom:12px; margin-bottom:12px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0; z-index:5; position:relative;
+  animation:flicker 9s infinite, border-glimmer 6s ease-in-out infinite;
+}
+@keyframes flicker { 0%,93%,100%{opacity:1} 94%{opacity:0.6} 95%{opacity:1} 97%{opacity:0.4} 98%{opacity:1} }
+@keyframes border-glimmer {
+  0%,100% { border-bottom-color:var(--border); }
+  50%     { border-bottom-color:var(--bright); box-shadow:0 1px 6px var(--glow); }
+}
+.fo-input-area { flex-shrink:0; border-top:1px solid var(--border); padding-top:10px; position:relative; z-index:5; padding-bottom:env(safe-area-inset-bottom,0px); animation:border-glimmer-top 7s ease-in-out infinite; }
+@keyframes border-glimmer-top {
+  0%,100% { border-top-color:var(--border); }
+  50%     { border-top-color:var(--bright); box-shadow:0 -1px 6px var(--glow); }
+}
+
+.fo-subtitle { font-size:clamp(9px,1.4vw,11px); letter-spacing:4px; color:var(--dim); margin-top:4px; text-transform:uppercase; }
+
+
+.fo-output { flex:1; overflow-y:auto; font-size:clamp(11px,1.8vw,13px); line-height:1.8; white-space:pre-wrap; word-break:break-word; color:var(--primary); text-shadow:0 0 4px var(--glow); padding-bottom:8px; -webkit-overflow-scrolling:touch; position:relative; z-index:5; scrollbar-width:none; }
+.fo-output::-webkit-scrollbar { display:none; }
+.fo-output .err  { color:var(--err); text-shadow:0 0 5px rgba(255,107,107,0.5); }
+.fo-output .ok   { color:var(--bright); text-shadow:0 0 8px var(--glow); }
+.fo-output .hdr  { color:var(--bright); text-shadow:0 0 8px var(--glow); }
+.fo-output .dim  { color:var(--bright); text-shadow:-1px -1px 0 var(--outline),1px -1px 0 var(--outline),-1px 1px 0 var(--outline),1px 1px 0 var(--outline); }
+.fo-output .info { color:var(--primary); }
+.fo-output .pwr  { color:var(--dim); font-size:10px; }
+.fo-output .warn { color:var(--bright); text-shadow:0 0 5px var(--glow); }
+
+.fo-prompt-row  { display:flex; align-items:center; font-size:clamp(11px,1.8vw,13px); color:var(--primary); text-shadow:0 0 4px var(--glow); }
+.fo-prompt-label { white-space:nowrap; flex-shrink:0; }
+.fake-input-wrap { position:relative; flex:1; height:18px; }
+.typed-text { position:absolute; top:0; left:0; white-space:pre; pointer-events:none; line-height:18px; font-family:'Share Tech Mono','Courier New',monospace; font-size:clamp(11px,1.8vw,13px); color:var(--primary); text-shadow:0 0 4px var(--glow); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+#real-input { position:absolute; top:0; left:0; width:100%; height:100%; background:transparent; border:none; outline:none; padding:0; font-family:'Share Tech Mono','Courier New',monospace; font-size:16px; color:transparent; caret-color:transparent; }
+
+.fo-footer { display:flex; justify-content:space-between; font-size:9px; letter-spacing:2px; margin-top:8px; text-transform:uppercase; position:relative; z-index:5; color:var(--bright); text-shadow:-1px -1px 0 var(--outline),1px -1px 0 var(--outline),-1px 1px 0 var(--outline),1px 1px 0 var(--outline); }
+
+/* ── SHARED OVERLAY BASE ── */
+.sc-overlay {
+  position:absolute; inset:0;
+  background:var(--bg);
+  display:none; flex-direction:column;
+  font-family:'Share Tech Mono','Courier New',monospace;
+}
+.sc-overlay.active { display:flex; }
+.sc-overlay-top {
+  display:flex; justify-content:space-between; align-items:center;
+  border-bottom:1px solid var(--border);
+  padding:14px 20px 10px;
+  color:var(--bright); text-shadow:0 0 8px var(--glow);
+  font-size:clamp(10px,1.8vw,12px); letter-spacing:2px;
+  flex-shrink:0;
+}
+.sc-close-btn {
+  cursor:pointer; border:1px solid var(--border); color:var(--primary);
+  background:transparent; padding:4px 12px;
+  font-family:inherit; font-size:inherit; letter-spacing:2px;
+  -webkit-tap-highlight-color:transparent;
+}
+.sc-close-btn:active { background:var(--primary); color:var(--ink); }
+.sc-close-btn.hidden { display:none; }
+
+/* ── HACKING MINIGAME ── */
+.hack-overlay { padding:20px 24px; z-index:20; }
+.hack-top { display:flex; justify-content:space-between; align-items:baseline; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:10px; color:var(--bright); text-shadow:0 0 8px var(--glow); font-size:clamp(11px,2vw,13px); letter-spacing:2px; flex-shrink:0; }
+.hack-attempts { display:flex; gap:6px; }
+.hack-attempt-dot { width:10px; height:14px; background:var(--primary); box-shadow:0 0 6px var(--glow); }
+.hack-attempt-dot.used { background:var(--border); box-shadow:none; opacity:0.3; }
+.hack-body { display:flex; gap:16px; flex:1; min-height:0; }
+.hack-col { flex:1; overflow-y:auto; font-size:clamp(10px,1.6vw,12.5px); line-height:1.9; color:var(--primary); scrollbar-width:none; }
+.hack-col::-webkit-scrollbar { display:none; }
+.hack-line { display:flex; gap:10px; white-space:nowrap; align-items:center; width:100%; }
+.hack-addr { color:var(--bright); flex-shrink:0; text-shadow:-1px -1px 0 var(--outline),1px -1px 0 var(--outline),-1px 1px 0 var(--outline),1px 1px 0 var(--outline); }
+.hack-bytes { display:flex; gap:4px; flex-wrap:nowrap; white-space:nowrap; flex:1; justify-content:space-between; }
+.hack-tok { cursor:pointer; padding:0 2px; border-radius:2px; color:var(--primary); text-shadow:0 0 4px var(--glow); -webkit-tap-highlight-color:transparent; user-select:none; }
+.hack-tok.candidate { color:var(--bright); text-shadow:0 0 8px var(--glow); font-weight:bold; }
+.hack-tok:active,.hack-tok.touched { background:var(--primary); color:var(--ink); text-shadow:none; }
+.hack-tok.bracket { color:var(--bright); opacity:0.7; }
+.hack-tok.bracket:active { background:var(--primary); color:var(--ink); opacity:1; }
+.hack-tok.candidate:focus-visible, .hack-tok.bracket:focus-visible {
+  outline:2px solid var(--bright); outline-offset:2px; background:rgba(255,255,255,0.1);
+}
+.hack-feed { margin-top:10px; border-top:1px solid var(--border); padding-top:8px; font-size:clamp(10px,1.6vw,12px); color:var(--primary); min-height:40px; max-height:70px; overflow-y:auto; flex-shrink:0; scrollbar-width:none; }
+.hack-feed::-webkit-scrollbar { display:none; }
+.hack-feed .ok   { color:var(--bright); }
+.hack-feed .err  { color:var(--err); }
+.hack-feed .warn { color:var(--bright); opacity:0.8; }
+.hack-history { margin-top:8px; border-top:1px solid var(--border); padding-top:6px; font-size:clamp(10px,1.6vw,12px); flex-shrink:0; display:flex; flex-direction:column; gap:3px; }
+.hack-history-row { display:flex; justify-content:space-between; color:var(--primary); text-shadow:0 0 4px var(--glow); }
+.hack-history-row .hh-match { color:var(--bright); }
+.hack-hint { font-size:10px; color:var(--bright); text-shadow:-1px -1px 0 var(--outline),1px -1px 0 var(--outline),-1px 1px 0 var(--outline),1px 1px 0 var(--outline); text-align:center; margin-top:8px; letter-spacing:1px; flex-shrink:0; }
+
+/* ── REFLEX MINIGAME ── */
+.reflex-overlay { z-index:22; align-items:center; justify-content:center; gap:18px; padding:24px; text-align:center; }
+.reflex-top { display:flex; justify-content:space-between; width:100%; max-width:360px; color:var(--bright); text-shadow:0 0 8px var(--glow); font-size:clamp(11px,2vw,13px); letter-spacing:2px; }
+.reflex-instructions { color:var(--primary); font-size:clamp(11px,2vw,13px); letter-spacing:1px; max-width:320px; }
+.reflex-track { position:relative; width:100%; max-width:360px; height:28px; background:rgba(0,0,0,0.5); border:1px solid var(--border); border-radius:4px; overflow:hidden; }
+.reflex-zone { position:absolute; top:0; bottom:0; background:var(--primary); opacity:0.4; }
+.reflex-bar { position:absolute; top:0; bottom:0; width:4px; background:#fff; box-shadow:0 0 8px #fff; left:0; }
+.reflex-button { font-family:inherit; font-size:clamp(16px,4vw,20px); letter-spacing:4px; padding:16px 48px; background:var(--primary); color:var(--ink); border:none; border-radius:6px; cursor:pointer; box-shadow:0 0 20px var(--glow); -webkit-tap-highlight-color:transparent; user-select:none; font-weight:bold; }
+.reflex-button:active { transform:scale(0.96); }
+.reflex-result { min-height:20px; font-size:clamp(11px,2vw,13px); letter-spacing:1px; color:var(--bright); }
+.reflex-result.win  { text-shadow:0 0 8px var(--glow); }
+.reflex-result.lose { color:var(--err); }
+#reflexTimer { color:var(--primary); }
+#reflexTimer.low { color:var(--err); text-shadow:0 0 8px var(--err); }
+
+/* ── MINIGAME MENU ── */
+.minigame-overlay { z-index:26; }
+.minigame-list { flex:1; min-height:0; overflow-y:auto; padding:8px 20px; -webkit-overflow-scrolling:touch; }
+.minigame-entry {
+  display:flex; align-items:center; gap:14px;
+  padding:14px 8px; border-bottom:1px solid var(--border);
+  cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none;
+}
+.minigame-entry:active { background:rgba(255,255,255,0.05); }
+.minigame-entry-icon {
+  width:36px; height:36px; flex-shrink:0; border:1px solid var(--border); border-radius:4px;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--bright); font-size:16px; text-shadow:0 0 8px var(--glow);
+}
+.minigame-entry-info { flex:1; min-width:0; }
+.minigame-entry-title { color:var(--bright); letter-spacing:1px; font-weight:bold; text-shadow:0 0 6px var(--glow); font-size:clamp(12px,1.9vw,14px); }
+.minigame-entry-desc { font-size:10.5px; color:var(--dim); margin-top:3px; letter-spacing:0.5px; line-height:1.4; }
+.minigame-entry-arrow { color:var(--primary); flex-shrink:0; font-size:16px; }
+
+/* ── PONG BREAKOUT ── */
+.breakout-overlay { z-index:27; }
+.breakout-stat { color:var(--bright); font-size:clamp(10px,1.7vw,12px); letter-spacing:1px; }
+.breakout-stage {
+  flex:1; min-height:0; position:relative; background:#000;
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+#breakoutCanvas { width:100%; height:100%; display:block; touch-action:none; }
+.breakout-overlay-msg {
+  position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+  flex-direction:column; gap:10px; background:rgba(0,0,0,0.75);
+  color:var(--bright); text-shadow:0 0 10px var(--glow); letter-spacing:2px;
+  font-size:clamp(14px,3vw,20px); text-align:center; padding:20px;
+}
+.breakout-overlay-msg.active { display:flex; }
+.breakout-overlay-msg span.small { font-size:clamp(10px,1.8vw,12px); color:var(--primary); letter-spacing:1px; }
+.breakout-hint {
+  font-size:10px; color:var(--bright); text-align:center; letter-spacing:1px;
+  padding:8px; flex-shrink:0; border-top:1px solid var(--border);
+}
+
+/* ── SOKOBAN MINIGAME ── */
+.sokoban-overlay { z-index:28; }
+.sokoban-stage {
+  flex:1; min-height:0; position:relative; background:#000;
+  display:flex; align-items:center; justify-content:center; overflow:hidden; padding:14px;
+  touch-action:none;
+}
+.sokoban-grid {
+  display:grid; gap:2px; background:var(--border); border:1px solid var(--border);
+  box-shadow:0 0 20px var(--glow); flex-shrink:0;
+}
+.sk-cell { position:relative; background:#050505; }
+.sk-cell.wall { background:var(--dim); box-shadow:inset 0 0 6px rgba(0,0,0,0.7); }
+.sk-cell.floor { background:rgba(255,255,255,0.03); }
+.sk-cell.target::after {
+  content:''; position:absolute; inset:32%; border-radius:50%;
+  border:2px solid var(--bright); box-shadow:0 0 6px var(--glow);
+}
+.sk-box {
+  position:absolute; inset:12%; background:var(--primary); border-radius:3px;
+  box-shadow:0 0 8px var(--glow); border:1px solid var(--bright);
+}
+.sk-box.on-target { background:var(--bright); box-shadow:0 0 16px var(--glow); }
+.sk-player {
+  position:absolute; inset:16%; background:#fff; border-radius:50%;
+  box-shadow:0 0 10px #fff;
+}
+.sk-player.on-target { box-shadow:0 0 16px var(--bright); }
+.sokoban-controls { display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 0 4px; flex-shrink:0; }
+.sokoban-dbtn-row { display:flex; gap:40px; }
+.sokoban-dbtn {
+  width:42px; height:42px; font-family:inherit; font-size:15px;
+  background:transparent; border:1px solid var(--border); color:var(--primary);
+  border-radius:6px; -webkit-tap-highlight-color:transparent; cursor:pointer;
+}
+.sokoban-dbtn:active { background:var(--primary); color:var(--ink); }
+
+/* ── MUSIC PLAYER ── */
+.music-overlay { z-index:23; }
+
+.music-body {
+  flex:1; display:flex; flex-direction:column;
+  min-height:0; position:relative;
+}
+
+/* Visualizer canvas (wrapped so we can overlay a fullscreen-exit button on top of it —
+   a bare <canvas> can't contain HTML children while it's the fullscreen element) */
+.milk-viz-wrap {
+  position:absolute; inset:0; width:100%; height:100%;
+  display:none;
+}
+.milk-viz-wrap.active { display:block; }
+#milkCanvas { width:100%; height:100%; display:block; }
+
+/* Fullscreen exit ("x") — hidden by default, only shown while the element is actually
+   fullscreened, and only becomes visible once the cursor hovers the top-right corner. */
+.fs-exit-zone {
+  display:none; position:absolute; top:0; right:0; width:72px; height:72px;
+  z-index:50; align-items:flex-start; justify-content:flex-end; padding:12px;
+}
+.video-stage.fs-active .fs-exit-zone,
+.milk-viz-wrap.fs-active .fs-exit-zone { display:flex; }
+.fs-exit-btn {
+  opacity:0; pointer-events:none; transition:opacity 0.15s ease;
+  width:30px; height:30px; border-radius:50%;
+  background:rgba(0,0,0,0.6); border:1px solid var(--border); color:var(--bright);
+  font-family:inherit; font-size:16px; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+}
+.fs-exit-zone:hover .fs-exit-btn { opacity:1; pointer-events:auto; box-shadow:0 0 8px var(--glow); }
+
+/* Search + category filter bar */
+.music-filter-bar {
+  flex-shrink:0; display:flex; flex-direction:column; gap:8px;
+  padding:10px 20px 8px; border-bottom:1px solid var(--border);
+  position:relative; z-index:2; background:var(--bg);
+}
+.music-search {
+  width:100%; background:transparent; border:1px solid var(--border);
+  color:var(--primary); font-family:inherit; font-size:clamp(11px,1.8vw,13px);
+  letter-spacing:1px; padding:8px 10px; outline:none;
+}
+.music-search::placeholder { color:var(--dim); }
+.music-search:focus { border-color:var(--bright); box-shadow:0 0 6px var(--glow); }
+.music-filter-selects { display:flex; gap:8px; flex-wrap:wrap; }
+.music-filter-select {
+  flex:1; min-width:90px; background:var(--bg); border:1px solid var(--border);
+  color:var(--primary); font-family:inherit; font-size:clamp(10px,1.6vw,11px);
+  letter-spacing:1px; padding:6px 6px; outline:none; cursor:pointer;
+  -webkit-appearance:none; appearance:none;
+}
+.music-filter-select:focus { border-color:var(--bright); }
+.music-no-results { padding:18px 8px; color:var(--dim); letter-spacing:1px; font-size:clamp(11px,1.8vw,12px); text-align:center; }
+
+/* Track list */
+.music-tracklist {
+  flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding:8px 20px;
+  position:relative; z-index:2;
+  -webkit-overflow-scrolling:touch; touch-action:pan-y;
+  scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+}
+.music-tracklist::-webkit-scrollbar { width:6px; }
+.music-tracklist::-webkit-scrollbar-track { background:transparent; }
+.music-tracklist::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+.music-tracklist::-webkit-scrollbar-thumb:hover { background:var(--primary); }
+.music-track {
+  display:flex; align-items:center; gap:12px;
+  padding:10px 8px; border-bottom:1px solid var(--border);
+  cursor:pointer; font-size:clamp(11px,1.8vw,13px);
+  color:var(--primary); letter-spacing:1px;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+}
+.music-track:active,.music-track.playing { color:var(--bright); background:rgba(255,255,255,0.05); }
+.music-track.playing { text-shadow:0 0 8px var(--glow); }
+.music-track-num { color:var(--dim); width:22px; flex-shrink:0; }
+.music-track-info { flex:1; min-width:0; }
+.music-track-title { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.music-track-artist { font-size:10px; color:var(--dim); margin-top:2px; letter-spacing:1px; }
+.music-track-dur { color:var(--dim); font-size:11px; flex-shrink:0; }
+
+/* Player controls */
+.music-controls {
+  flex-shrink:0; padding:12px 20px 8px;
+  border-top:1px solid var(--border);
+  display:flex; flex-direction:column; gap:10px;
+  position:relative; z-index:2;
+  background:var(--bg);
+}
+.music-now-playing { font-size:clamp(10px,1.8vw,12px); color:var(--bright); text-shadow:0 0 6px var(--glow); letter-spacing:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.music-progress-wrap { position:relative; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.music-progress-bar { height:100%; background:var(--primary); border-radius:3px; width:0%; box-shadow:0 0 6px var(--glow); pointer-events:none; }
+.music-btn-row { display:flex; align-items:center; gap:16px; }
+.music-btn {
+  font-family:inherit; font-size:clamp(11px,2vw,13px); letter-spacing:2px;
+  padding:7px 14px; background:transparent; border:1px solid var(--border);
+  color:var(--primary); cursor:pointer; -webkit-tap-highlight-color:transparent;
+}
+.music-btn:active,.music-btn.active-btn { background:var(--primary); color:var(--ink); }
+.music-time { font-size:11px; color:var(--dim); margin-left:auto; letter-spacing:1px; }
+.music-vol-wrap { display:flex; align-items:center; gap:10px; font-size:11px; color:var(--dim); letter-spacing:1px; }
+.music-vol { -webkit-appearance:none; appearance:none; flex:1; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; outline:none; cursor:pointer; }
+.music-vol::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--primary); box-shadow:0 0 6px var(--glow); }
+
+/* ── VIDEO PLAYER ── */
+.video-overlay { z-index:24; }
+
+.video-tabs {
+  flex-shrink:0; display:flex; gap:0; border-bottom:1px solid var(--border);
+  position:relative; z-index:2; background:var(--bg);
+}
+.video-tab-btn {
+  flex:1; font-family:inherit; font-size:clamp(9px,1.6vw,11px); letter-spacing:1.5px;
+  padding:10px 6px; background:transparent; border:none;
+  border-right:1px solid var(--border);
+  color:var(--dim); cursor:pointer; -webkit-tap-highlight-color:transparent;
+  text-transform:uppercase;
+}
+.video-tab-btn:last-child { border-right:none; }
+.video-tab-btn.active-btn { color:var(--bright); text-shadow:0 0 8px var(--glow); background:rgba(255,255,255,0.05); }
+
+.video-body { flex:1; min-height:0; display:flex; flex-direction:column; position:relative; }
+
+/* Station / single-video stage */
+.video-stage {
+  flex:1; min-height:0; display:flex; align-items:center; justify-content:center;
+  background:#000; position:relative;
+}
+.video-stage.hidden { display:none; }
+#vidPlayer { width:100%; height:100%; object-fit:contain; background:#000; }
+#vidPlayer.hidden { display:none; }
+.yt-player-container { width:100%; height:100%; }
+.yt-player-container.hidden { display:none; }
+.video-stage-empty {
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  color:var(--dim); letter-spacing:2px; font-size:clamp(10px,1.8vw,12px); text-align:center; padding:20px;
+  pointer-events:none;
+}
+.video-stage-empty.hidden { display:none; }
+
+/* Library search + list (reuses music-tracklist styling for scroll behavior) */
+.video-library-panel {
+  flex:1; min-height:0; display:flex; flex-direction:column; position:relative;
+}
+.video-library-panel.hidden { display:none; }
+.video-library-list.music-tracklist { flex:1; min-height:0; }
+.video-track-title { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.video-track-meta { font-size:10px; color:var(--dim); margin-top:2px; letter-spacing:1px; }
+.video-track-summary {
+  font-size:10px; color:var(--dim); margin-top:3px; letter-spacing:0.5px;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  line-height:1.4;
+}
+
+/* Shared bottom controls: now-playing summary line under the title */
+.video-summary {
+  font-size:10px; color:var(--dim); letter-spacing:0.5px; line-height:1.4;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  margin-top:-4px;
+}
+
+/* ── EMULATOR OVERLAY ── */
+.emu-overlay { z-index:25; }
+#emuContainer { flex:1; min-height:0; background:#000; position:relative; }
+.emu-loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--primary); font-family:'Share Tech Mono','Courier New',monospace; font-size:13px; letter-spacing:2px; text-shadow:0 0 6px var(--glow); }
+
+</style>
+</head>
+<body>
+
+<div class="fo-wrap">
+  <div class="fo-screen" id="terminal">
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+    <div class="vhs-rgb"></div>
+    <canvas id="glitterCanvas"></canvas>
+
+    <div class="fo-header">
+      <div class="fo-title">Liluxsaru</div>
+      <div class="fo-subtitle">Terminal Access System &mdash; v1.0</div>
+    </div>
+
+    <div class="fo-output" id="out"><span class="hdr">Liluxsaru Terminal [Version 1.0]
+<span class="pwr">Powered By GitHub</span>
+(C)Copyright Liluxsaru. All rights reserved.</span>
+
+<span class="info">Type HELP for available commands.</span>
+
+</div>
+
+    <div class="fo-input-area">
+      <div class="fo-prompt-row">
+        <span class="fo-prompt-label">C:\LILUXSARU&gt;&nbsp;</span>
+        <div class="fake-input-wrap">
+          <input id="real-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" autofocus aria-label="Command input" />
+          <div class="typed-text"><span id="typed"></span><span class="cursor-block"></span></div>
+        </div>
+      </div>
+      <div class="fo-footer">
+        <span>Liluxsaru.do.am</span>
+        <span id="fo-time">--:--:--</span>
+      </div>
+    </div>
+
+    <!-- HACKING MINIGAME -->
+    <div class="sc-overlay hack-overlay" id="hackOverlay">
+      <div class="hack-top">
+        <span>SECURITY OVERRIDE // LILUXSARU</span>
+        <div class="hack-attempts" id="hackAttempts"></div>
+      </div>
+      <div class="hack-body">
+        <div class="hack-col" id="hackColA"></div>
+        <div class="hack-col" id="hackColB"></div>
+      </div>
+      <div class="hack-history" id="hackHistory"></div>
+      <div class="hack-feed" id="hackFeed"></div>
+      <div class="hack-hint">TAP A WORD OR A [BRACKET PAIR] TO GUESS &mdash; OR USE ARROW KEYS + SPACE/ENTER</div>
+    </div>
+
+    <!-- REFLEX MINIGAME -->
+    <div class="sc-overlay reflex-overlay" id="reflexOverlay">
+      <div class="reflex-top">
+        <span id="reflexLabel">SYNC TEST</span>
+        <span id="reflexTimer">10s</span>
+        <span id="reflexRound">ROUND 1/3</span>
+      </div>
+      <div class="reflex-instructions" id="reflexInstructions">TAP WHEN THE BAR HITS THE ZONE (SPACE / ENTER ALSO WORKS)</div>
+      <div class="reflex-track">
+        <div class="reflex-zone" id="reflexZone"></div>
+        <div class="reflex-bar" id="reflexBar"></div>
+      </div>
+      <button class="reflex-button" id="reflexButton">TAP</button>
+      <div class="reflex-result" id="reflexResult">&nbsp;</div>
+    </div>
+
+    <!-- MINIGAME MENU -->
+    <div class="sc-overlay minigame-overlay" id="minigameMenuOverlay">
+      <div class="sc-overlay-top">
+        <span>LILUXSARU // MINIGAME ARCHIVE</span>
+        <button class="sc-close-btn" id="minigameMenuClose">CLOSE</button>
+      </div>
+      <div class="minigame-list" id="minigameList"></div>
+    </div>
+
+    <!-- PONG BREAKOUT MINIGAME -->
+    <div class="sc-overlay breakout-overlay" id="breakoutOverlay">
+      <div class="sc-overlay-top">
+        <span id="breakoutTitle">PONG BREAKOUT</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="breakout-stat" id="breakoutScore">SCORE: 0</span>
+          <span class="breakout-stat" id="breakoutLives">LIVES: 3</span>
+          <button class="sc-close-btn" id="breakoutClose">CLOSE</button>
+        </div>
+      </div>
+      <div class="breakout-stage">
+        <canvas id="breakoutCanvas"></canvas>
+        <div class="breakout-overlay-msg" id="breakoutMsg"></div>
+      </div>
+      <div class="breakout-hint">ARROW KEYS / A-D TO MOVE &mdash; SPACE TO LAUNCH &mdash; DRAG ON MOBILE</div>
+    </div>
+
+    <!-- SOKOBAN MINIGAME -->
+    <div class="sc-overlay sokoban-overlay" id="sokobanOverlay">
+      <div class="sc-overlay-top">
+        <span id="sokobanTitle">BOX RUN</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="breakout-stat" id="sokobanMoves">MOVES: 0</span>
+          <button class="sc-close-btn" id="sokobanResetBtn">RESET</button>
+          <button class="sc-close-btn" id="sokobanClose">CLOSE</button>
+        </div>
+      </div>
+      <div class="sokoban-stage" id="sokobanStage">
+        <div class="sokoban-grid" id="sokobanGrid"></div>
+        <div class="breakout-overlay-msg" id="sokobanMsg"></div>
+      </div>
+      <div class="sokoban-controls" id="sokobanControls">
+        <button class="sokoban-dbtn" data-dir="up">&#9650;</button>
+        <div class="sokoban-dbtn-row">
+          <button class="sokoban-dbtn" data-dir="left">&#9664;</button>
+          <button class="sokoban-dbtn" data-dir="undo">&#8630;</button>
+          <button class="sokoban-dbtn" data-dir="right">&#9654;</button>
+        </div>
+        <button class="sokoban-dbtn" data-dir="down">&#9660;</button>
+      </div>
+      <div class="breakout-hint">ARROW KEYS / WASD TO MOVE &mdash; SWIPE OR D-PAD ON MOBILE &mdash; &#8630; UNDOES A MOVE</div>
+    </div>
+
+    <!-- MUSIC PLAYER -->
+    <div class="sc-overlay music-overlay" id="musicOverlay">
+      <div class="sc-overlay-top">
+        <span>LILUXSARU // MEDIA MODULE</span>
+        <div style="display:flex;gap:8px;">
+          <button class="sc-close-btn" id="vizToggleBtn">VISUALIZER</button>
+          <button class="sc-close-btn hidden" id="milkFullscreenBtn">FULLSCREEN</button>
+          <button class="sc-close-btn" id="musicClose">CLOSE</button>
+        </div>
+      </div>
+      <div class="music-body">
+        <div class="milk-viz-wrap" id="milkVizWrap">
+          <canvas id="milkCanvas"></canvas>
+          <div class="fs-exit-zone">
+            <button class="fs-exit-btn" id="milkFsExitBtn" aria-label="Exit fullscreen" type="button">&times;</button>
+          </div>
+        </div>
+        <div class="music-filter-bar" id="musicFilterBar">
+          <input class="music-search" id="musicSearch" type="text" placeholder="SEARCH TITLE / ARTIST / ALBUM..." autocomplete="off">
+          <div class="music-filter-selects">
+            <select class="music-filter-select" id="filterArtist"><option value="">ARTIST: ALL</option></select>
+            <select class="music-filter-select" id="filterAlbum"><option value="">ALBUM: ALL</option></select>
+            <select class="music-filter-select" id="filterGenre"><option value="">GENRE: ALL</option></select>
+          </div>
+        </div>
+        <div class="music-tracklist" id="musicTracklist"></div>
+      </div>
+      <div class="music-controls">
+        <div class="music-now-playing" id="nowPlaying">-- SELECT A TRACK --</div>
+        <div class="music-progress-wrap" id="progressWrap">
+          <div class="music-progress-bar" id="progressBar"></div>
+        </div>
+        <div class="music-btn-row">
+          <button class="music-btn" id="prevBtn">&#9664;&#9664;</button>
+          <button class="music-btn" id="playBtn">&#9654;</button>
+          <button class="music-btn" id="nextBtn">&#9654;&#9654;</button>
+          <button class="music-btn" id="shuffleBtn">&#8645;</button>
+          <span class="music-time" id="musicTime">0:00 / 0:00</span>
+        </div>
+        <div class="music-vol-wrap">
+          <span>VOL</span>
+          <input class="music-vol" type="range" id="volSlider" min="0" max="1" step="0.01" value="0.8">
+        </div>
+      </div>
+    </div>
+
+    <!-- VIDEO PLAYER -->
+    <div class="sc-overlay video-overlay" id="videoOverlay">
+      <div class="sc-overlay-top">
+        <span>LILUXSARU // MEDIA MODULE</span>
+        <div style="display:flex;gap:8px;">
+          <button class="sc-close-btn" id="videoFullscreenBtn">FULLSCREEN</button>
+          <button class="sc-close-btn" id="videoClose">CLOSE</button>
+        </div>
+      </div>
+      <div class="video-tabs" id="videoTabs">
+        <button class="video-tab-btn active-btn" id="tabTv" data-tab="tv">LILUXSARU TV</button>
+        <button class="video-tab-btn" id="tabMusicTv" data-tab="musictv">MUSIC TV</button>
+        <button class="video-tab-btn" id="tabLibrary" data-tab="library">LIBRARY</button>
+      </div>
+      <div class="video-body">
+        <div class="video-stage" id="videoStage">
+          <video id="vidPlayer" playsinline></video>
+          <div class="yt-player-container hidden" id="ytPlayerWrap">
+            <div id="ytPlayerContainer"></div>
+          </div>
+          <div class="video-stage-empty" id="videoStageEmpty">LOADING...</div>
+          <div class="fs-exit-zone">
+            <button class="fs-exit-btn" id="videoFsExitBtn" aria-label="Exit fullscreen" type="button">&times;</button>
+          </div>
+        </div>
+        <div class="video-library-panel hidden" id="videoLibraryPanel">
+          <div class="music-filter-bar">
+            <input class="music-search" id="videoSearch" type="text" placeholder="SEARCH VIDEO TITLES..." autocomplete="off">
+          </div>
+          <div class="music-tracklist video-library-list" id="videoLibraryList"></div>
+        </div>
+      </div>
+      <div class="music-controls">
+        <div class="music-now-playing" id="videoNowPlaying">-- SELECT A VIDEO --</div>
+        <div class="video-summary" id="videoSummary"></div>
+        <div class="music-progress-wrap" id="videoProgressWrap">
+          <div class="music-progress-bar" id="videoProgressBar"></div>
+        </div>
+        <div class="music-btn-row">
+          <button class="music-btn" id="videoPrevBtn">&#9664;&#9664;</button>
+          <button class="music-btn" id="videoPlayBtn">&#9654;</button>
+          <button class="music-btn" id="videoNextBtn">&#9654;&#9654;</button>
+          <span class="music-time" id="videoTime">0:00 / 0:00</span>
+        </div>
+        <div class="music-vol-wrap">
+          <span>VOL</span>
+          <input class="music-vol" type="range" id="videoVolSlider" min="0" max="1" step="0.01" value="0.8">
+        </div>
+      </div>
+    </div>
+
+    <!-- EMULATOR -->
+    <div class="sc-overlay emu-overlay" id="emuOverlay">
+      <div class="sc-overlay-top">
+        <span>LILUXSARU // GB MODULE</span>
+        <button class="sc-close-btn" id="emuClose">CLOSE</button>
+      </div>
+      <div id="emuContainer">
+        <div class="emu-loading" id="emuLoading">LOADING CARTRIDGE...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- <popup> --><!-- </popup> -->
+
+<script>
+/* ═══════════════════════════════════════════
+   THEME SYSTEM — picks one at random on load
+   ═══════════════════════════════════════════ */
+const THEMES = {
+  hotpink: {
+    '--bg':      '#0d0008',
+    '--primary': '#ff69b4',
+    '--bright':  '#ffb3d9',
+    '--dim':     '#7a2a50',
+    '--border':  '#a03060',
+    '--glow':    'rgba(255,105,180,0.35)',
+    '--err':     '#ff4444',
+    '--ink':     '#0d0008',
+    '--outline': '#0d0008',
+  },
+  mossy: {
+    '--bg':      '#060e06',
+    '--primary': '#6dbf7e',
+    '--bright':  '#b3f0bf',
+    '--dim':     '#2e5c36',
+    '--border':  '#3a7a4a',
+    '--glow':    'rgba(109,191,126,0.35)',
+    '--err':     '#ff8d6b',
+    '--ink':     '#060e06',
+    '--outline': '#060e06',
+  },
+  babyblue: {
+    '--bg':      '#01010f',
+    '--primary': '#7dd9ff',
+    '--bright':  '#ccf2ff',
+    '--dim':     '#2a5a7a',
+    '--border':  '#2a6a8a',
+    '--glow':    'rgba(125,217,255,0.35)',
+    '--err':     '#ff6b6b',
+    '--ink':     '#01010f',
+    '--outline': '#01010f',
+  },
+  noir: {
+    '--bg':      '#0a0a0a',
+    '--primary': '#c8c8c8',
+    '--bright':  '#ffffff',
+    '--dim':     '#555555',
+    '--border':  '#666666',
+    '--glow':    'rgba(200,200,200,0.25)',
+    '--err':     '#ff4444',
+    '--ink':     '#0a0a0a',
+    '--outline': '#0a0a0a',
+  },
+};
+
+const themeKeys = Object.keys(THEMES);
+const chosenTheme = THEMES[themeKeys[Math.floor(Math.random() * themeKeys.length)]];
+const root = document.documentElement;
+Object.entries(chosenTheme).forEach(([k, v]) => root.style.setProperty(k, v));
+
+/* ═══════════════════════════════════════
+   PAGE CONFIG
+   ═══════════════════════════════════════ */
+const pages = {
+  home:    { label: 'Home',    url: '/' },
+  contact: { label: 'Contact', url: '/contact' },
+};
+
+const gamesCmd = 'games';
+/* ═══════════════════════════════════════════════════════════════
+   INTERACTIVE FICTION GAMES — add as many as you want, no limit.
+   Each game needs a short one-word key (used as the command to
+   launch it), a label (shown in the list), and a url (the
+   Parchment/interpreter link that plays the story in the browser).
+   Typing GAMES lists them all; typing a game's key launches it
+   in a new tab so the terminal stays open.
+   ═══════════════════════════════════════════════════════════════ */
+const games = {
+  zork: { label: 'Zork I: The Great Underground Empire', url: 'https://iplayif.com/?story=https%3A%2F%2Fifarchive.org%2Fif-archive%2Fgames%2Fzcode%2Fzdungeon.z5' },
+  zorkzero: { label: 'Zork Zero: The Revenge of Megaboz', url: 'https://curiousdannii.github.io/infocom-frotz/zorkzero.html' },
+  underzork: { label: 'Zork: The Undiscovered Underground', url: 'https://iplayif.com/?story=https%3A%2F%2Funbox.ifarchive.org%2F%3Furl%3Dhttps%253A%252F%252Fifarchive.org%252Fif-archive%252Finfocom%252Fdemos%252Fztuu.zip%26open%3DZTUU.Z5' },
+  zork2: { label: 'Zork II: The Wizard of Frobozz', url: 'https://iplayif.com/?story=https%3A%2F%2Feblong.com%2Finfocom%2Fgamefiles%2Fzork2-r48-s840904.z3' },
+  zork3: { label: 'Zork III: The Dungeon Master', url: 'https://iplayif.com/?story=https%3A%2F%2Feblong.com%2Finfocom%2Fgamefiles%2Fzork3-r17-s840727.z3' },
+  beyondzork: { label: 'Beyond Zork', url: 'https://iplayif.com/?story=https%3A%2F%2Feblong.com%2Finfocom%2Fgamefiles%2Fbeyondzork-r57-s871221.z5' },
+  advent: { label: 'Colossal Cave Adventure', url: 'https://iplayif.com/?story=https%3A%2F%2Fifarchive.org%2Fif-archive%2Fgames%2Fzcode%2Fadvent.z8' },
+};
+
+const secrets = {
+  override: { label: 'Security Override', failUrl: '/' },
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   OVERRIDE REWARD LINKS — every successful OVERRIDE hack redirects
+   to one randomly chosen URL from this list. These must be full,
+   external URLs (starting with http:// or https://) — e.g.
+   'https://example.com/some-page' — NOT paths on this site, or
+   the browser will just try to load them as a local file/page here.
+   Add as many as you want — just paste a new URL on its own line.
+   ═══════════════════════════════════════════════════════════════ */
+const hackRewardUrls = [
+  'https://gamefaqs.gamespot.com/',
+  'https://homestarrunner.com/',
+  'https://www.spacejam.com/1996/',
+  'https://www.heavensgate.com/',
+  'https://www.newgrounds.com/',
+  'https://www.neopets.com/',
+  'https://www.wheresgeorge.com/',
+  'https://dollzrevival.neocities.org/',
+  'https://www.metafilter.com/',
+  'https://www.straightdope.com/',
+  'https://boards.straightdope.com/',
+  'https://archive.org/',
+  'https://www.erowid.org/',
+  'https://maddox.xmission.com/',
+  'https://ytmnd.com/',
+  'https://zombo.com/',
+  'https://www.fark.com/',
+  'https://groups.google.com/g/alt.music.nirvana/c/QLt43x5ibvs/m/XnEJ9BVZA78J?pli=1',
+  'http://www.stegmaierbeer.com/',
+  'https://milliondollarhomepage.com/',
+  'https://www.pakin.org/complaint',
+  'https://ddtdigest.com/',
+  'http://toastytech.com/',
+  'http://udiscus.com/',
+  'bohemiansultriness.nekoweb.org',
+  'http://www.kennykramer.com/home.html',
+  'https://www.kissthisguy.com/jimi.php',
+  'https://www.oocities.org/#gsc.tab=0',
+  'https://neocities.org/browse',
+  'https://www.tumblr.com/oneterabyteofkilobyteage',
+  'https://geocities.restorativland.org/Area51/Shadowlands/',
+];
+
+function pickHackRewardUrl(){
+  if(!hackRewardUrls.length) return '/';
+  let url = hackRewardUrls[Math.floor(Math.random()*hackRewardUrls.length)].trim();
+  if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  return url;
+}
+
+const gameCommand = {
+  cmd:     'cartridge',
+  core:    'gambatte',
+  romUrl:  '/Star%20Ocean%20-%20Blue%20Sphere.gbc'
+};
+
+const reflexGames = {
+  syncup:  { cmd: 'syncup',  label: 'SYNC TEST',    rounds: 3, timeLimit: 10, speedBase: 1.8, speedPerRound: 0.6, zoneBase: 0.22, zonePerRound: 0.02, unlockUrl: null },
+  syncup2: { cmd: 'syncup2', label: 'SYNC TEST II', rounds: 5, timeLimit: 8,  speedBase: 2.4, speedPerRound: 0.8, zoneBase: 0.16, zonePerRound: 0.015, unlockUrl: null },
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   MINIGAME MENU — a hidden arcade menu unlocked by beating SYNCUP
+   once. After that, typing MINIGAME opens this list, which shows
+   up in HELP and DIR too. Add more entries to the array below to
+   grow the arcade — each needs a key, title, short description,
+   and an action function that launches it.
+
+   LEVEL 2s — beating SYNC TEST unlocks SYNC TEST II, and beating
+   PONG BREAKOUT unlocks PONG BREAKOUT II. Each has its own
+   unlock flag, kept in sessionStorage (not localStorage) so it only
+   lasts for the current browser session — a fresh tab/visit always
+   starts locked again and SYNCUP has to be beaten from scratch.
+   ═══════════════════════════════════════════════════════════════ */
+const minigameCmd = 'minigame';
+const MINIGAME_UNLOCK_KEY = 'lx_minigame_unlocked';
+let minigameUnlocked = false;
+try { minigameUnlocked = sessionStorage.getItem(MINIGAME_UNLOCK_KEY) === '1'; } catch(e) {}
+function unlockMinigameMenu(){
+  if (minigameUnlocked) return;
+  minigameUnlocked = true;
+  try { sessionStorage.setItem(MINIGAME_UNLOCK_KEY, '1'); } catch(e) {}
+}
+
+const SYNCUP2_UNLOCK_KEY = 'lx_syncup2_unlocked';
+let syncup2Unlocked = false;
+try { syncup2Unlocked = sessionStorage.getItem(SYNCUP2_UNLOCK_KEY) === '1'; } catch(e) {}
+function unlockSyncup2(){
+  if (syncup2Unlocked) return;
+  syncup2Unlocked = true;
+  try { sessionStorage.setItem(SYNCUP2_UNLOCK_KEY, '1'); } catch(e) {}
+}
+
+const BREAKOUT2_UNLOCK_KEY = 'lx_breakout2_unlocked';
+let breakout2Unlocked = false;
+try { breakout2Unlocked = sessionStorage.getItem(BREAKOUT2_UNLOCK_KEY) === '1'; } catch(e) {}
+function unlockBreakout2(){
+  if (breakout2Unlocked) return;
+  breakout2Unlocked = true;
+  try { sessionStorage.setItem(BREAKOUT2_UNLOCK_KEY, '1'); } catch(e) {}
+}
+
+const SOKOBAN2_UNLOCK_KEY = 'lx_sokoban2_unlocked';
+let sokoban2Unlocked = false;
+try { sokoban2Unlocked = sessionStorage.getItem(SOKOBAN2_UNLOCK_KEY) === '1'; } catch(e) {}
+function unlockSokoban2(){
+  if (sokoban2Unlocked) return;
+  sokoban2Unlocked = true;
+  try { sessionStorage.setItem(SOKOBAN2_UNLOCK_KEY, '1'); } catch(e) {}
+}
+
+function getMinigameMenuEntries(){
+  const entries = [
+    { icon: '&#9673;', title: 'SYNC TEST', desc: 'Tap timing challenge — hit the moving zone before the 10s clock runs out.', action: () => { closeMinigameMenu(); startReflex(reflexGames.syncup); } },
+    { icon: '&#9646;&#9646;', title: 'PONG BREAKOUT', desc: 'Classic paddle-and-ball brick breaker. Clear the wall to win.', action: () => { closeMinigameMenu(); startBreakout(0); } },
+    { icon: '&#9635;', title: 'BOX RUN', desc: 'Push crates onto the glowing marks. A freshly generated warehouse every time.', action: () => { closeMinigameMenu(); startSokoban(0); } },
+  ];
+  if (syncup2Unlocked) {
+    entries.push({ icon: '&#9673;&#9673;', title: 'SYNC TEST II', desc: 'Faster bar, tighter zone, less time. For SYNC TEST graduates.', action: () => { closeMinigameMenu(); startReflex(reflexGames.syncup2); } });
+  }
+  if (breakout2Unlocked) {
+    entries.push({ icon: '&#9646;&#9646;&#9646;', title: 'PONG BREAKOUT II', desc: 'A denser wall and a faster ball. Clear it for bragging rights.', action: () => { closeMinigameMenu(); startBreakout(1); } });
+  }
+  if (sokoban2Unlocked) {
+    entries.push({ icon: '&#9635;&#9635;', title: 'BOX RUN II', desc: 'Bigger warehouse, more crates, tighter corridors.', action: () => { closeMinigameMenu(); startSokoban(1); } });
+  }
+  return entries;
+}
+
+const musicCmd = 'music';
+/* ═══════════════════════════════════════════════════════════════
+   TRACK LIBRARY — add as many entries as you want, no limit.
+   Each track needs: title, artist, album, genre, url.
+   Just copy a row and fill in the new track's info.
+   ═══════════════════════════════════════════════════════════════ */
+const tracks = [
+  { title: 'Get Back (Explicit)',    artist: 'Ludacris', album: 'The Red Light District', genre: 'Hip-Hop', url: 'https://files.catbox.moe/c49513.mp3' },
+  { title: 'Maktoub',    artist: 'Alewya', album: 'Zero', genre: 'Nigerian R&B', url: 'https://files.catbox.moe/qcox7o.mp3' },
+  { title: 'Scary Monsters and Nice Sprites',    artist: 'Crowdburn', album: 'Ignition', genre: 'Metal', url: 'https://files.catbox.moe/aq9wdk.mp3' },
+  { title: 'Blue Dream',    artist: 'JAKI BLUE', album: 'AGAINST GIANTS', genre: 'R&B', url: 'https://files.catbox.moe/a6eixe.mp3' },
+  { title: 'Venus&AllAboveHer',    artist: 'liluxsaru', album: 'lightscape', genre: 'Experimental Metal', url: 'https://files.catbox.moe/qogf86.mp3' },
+  { title: 'XO (feat. Sophie Powers)',    artist: 'RJ Pasin', album: 'The Indomitable Human Spirit', genre: 'Alternative Metal', url: 'https://files.catbox.moe/13jf49.mp3' },
+  { title: 'Vampire By Rumor',    artist: 'TX2', album: 'DROP DEAD', genre: 'Rock', url: 'https://files.catbox.moe/nr5z64.mp3' },
+  { title: 'Nice Guy (feat. EKOH)',    artist: 'TX2', album: 'End of Us', genre: 'Rock', url: 'https://files.catbox.moe/vuoasn.mp3' },
+  { title: 'Hatchet',    artist: 'TX2', album: 'Hatchet', genre: 'Rock', url: 'https://files.catbox.moe/w7u6x9.mp3' },
+  { title: 'cotton candy',    artist: 'YUNGBLUD', album: 'Weird!', genre: 'Rock', url: 'https://files.catbox.moe/nxr2m0.mp3' },
+];
+
+const videoCmd = 'video';
+/* ═══════════════════════════════════════════════════════════════
+   VIDEO LIBRARY — add as many entries as you want, no limit.
+   Each video needs: title, summary (short description), url.
+   `url` can be either:
+     - a direct .mp4 file link (plays in the built-in player), or
+     - a YouTube link — watch, youtu.be, or shorts links all work,
+       e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ
+            https://youtu.be/dQw4w9WgXcQ
+       These play through an embedded YouTube player automatically —
+       no extra setup needed, just paste the link.
+   Just copy a row into the right list and fill in the new video's info.
+   The LIBRARY tab is built automatically from these two lists — no
+   need to maintain a third combined list by hand.
+   ═══════════════════════════════════════════════════════════════ */
+const tvVideos = [
+  { title: '411 Teaser',      summary: 'Teaser for the 411 movie.', url: 'https://files.catbox.moe/8ehgvu.mp4' },
+];
+
+const musicVideoList = [
+  { title: '411 Music Teaser',   summary: 'Teaser for the 411 movie.',   url: 'https://files.catbox.moe/8ehgvu.mp4' },
+];
+
+
+/* ═══════════════════════════════════════
+   TERMINAL CORE
+   ═══════════════════════════════════════ */
+const out   = document.getElementById('out');
+const typed = document.getElementById('typed');
+const input = document.getElementById('real-input');
+const clock = document.getElementById('fo-time');
+
+function updateClock() {
+  const n = new Date();
+  clock.textContent = String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');
+}
+updateClock(); setInterval(updateClock, 1000);
+
+document.getElementById('terminal').addEventListener('click', () => {
+  if (document.querySelector('.sc-overlay.active')) return;
+  input.focus();
+});
+input.addEventListener('input', () => { typed.textContent = input.value; });
+
+let commandHistory = [];
+let historyIndex = -1; /* -1 = not currently browsing history */
+
+function setInputValue(v) {
+  input.value = v; typed.textContent = v;
+  requestAnimationFrame(() => input.setSelectionRange(v.length, v.length));
+}
+
+input.addEventListener('keydown', e => {
+  if (document.querySelector('.sc-overlay.active')) return;
+
+  if (e.key === 'ArrowUp') {
+    if (!commandHistory.length) return;
+    e.preventDefault();
+    historyIndex = historyIndex === -1 ? commandHistory.length-1 : Math.max(0, historyIndex-1);
+    setInputValue(commandHistory[historyIndex]);
+    return;
+  }
+  if (e.key === 'ArrowDown') {
+    if (historyIndex === -1) return;
+    e.preventDefault();
+    historyIndex++;
+    if (historyIndex >= commandHistory.length) { historyIndex = -1; setInputValue(''); }
+    else setInputValue(commandHistory[historyIndex]);
+    return;
+  }
+
+  if (e.key !== 'Enter') return;
+  const raw = input.value;
+  const cmd = raw.trim().toLowerCase();
+  append('<span class="dim">C:\\LILUXSARU&gt;</span> ' + raw);
+  input.value = ''; typed.textContent = '';
+  if (!cmd) return;
+  if (commandHistory[commandHistory.length-1] !== raw) commandHistory.push(raw);
+  historyIndex = -1;
+
+  if (cmd === 'help' || cmd === 'help /?') {
+    append('<span class="hdr">Available commands:</span>');
+    Object.entries(pages).forEach(([k,v]) => append('  '+k.toUpperCase().padEnd(12)+'- Go to '+v.label));
+    append('  MUSIC       - Open music player');
+    append('  VIDEO       - Open video player');
+    append('  GAMES       - List IF games');
+    append('  OVERRIDE    - Bypass security systems');
+    append('  HELP        - Show this list');
+    append('  CLS         - Clear screen');
+    append('  VER         - Version info');
+    append('  DIR         - List pages');
+    Object.values(reflexGames).forEach(g => { if (minigameUnlocked) return; if (g.cmd==='syncup2' && !syncup2Unlocked) return; append('  '+g.cmd.toUpperCase().padEnd(12)+'- '+g.label+' (minigame)'); });
+    if (minigameUnlocked) append('  MINIGAME    - Open minigame menu');
+    return;
+  }
+  if (cmd === 'cls') { out.innerHTML = ''; return; }
+  if (cmd === 'ver') {
+    append('<span class="hdr">Liluxsaru Terminal [Version 1.0]</span>');
+    append('<span class="dim">liluxsaru.do.am - Terminal Navigation v1.0</span>');
+    return;
+  }
+  if (cmd === 'dir') {
+    append('<span class="hdr"> Volume in drive C has no label.\n Directory of C:\\LILUXSARU</span>\n');
+    Object.entries(pages).forEach(([k]) => append('01/01/99  12:00AM    &lt;PAGE&gt;    '+k.toUpperCase()));
+    append('01/01/99  12:00AM    &lt;SECURE&gt;  OVERRIDE');
+    let dirCount = Object.keys(pages).length+1;
+    if (minigameUnlocked) { append('01/01/99  12:00AM    &lt;GAME&gt;    MINIGAME'); dirCount++; }
+    append('<span class="dim">       '+dirCount+' page(s)</span>');
+    return;
+  }
+  if (pages[cmd]) {
+    append('<span class="warn">Navigating to: '+pages[cmd].label+'</span>');
+    setTimeout(() => { window.location.href = pages[cmd].url; }, 500);
+    return;
+  }
+  if (cmd === gamesCmd) {
+    append('<span class="hdr">Interactive fiction games:</span>');
+    Object.entries(games).forEach(([k,v]) => append('  '+k.toUpperCase().padEnd(12)+'- '+v.label));
+    append('<span class="dim">Type a game name to launch it in a new tab.</span>');
+    return;
+  }
+  if (games[cmd]) {
+    append('<span class="warn">Launching: '+games[cmd].label+'</span>');
+    setTimeout(() => { window.open(games[cmd].url, '_blank'); }, 500);
+    return;
+  }
+  if (secrets[cmd]) {
+    append('<span class="warn">Initiating security override...</span>');
+    setTimeout(() => startHack(secrets[cmd]), 400); return;
+  }
+  if (cmd === gameCommand.cmd) {
+    append('<span class="warn">Loading cartridge module...</span>');
+    setTimeout(() => startEmulator(), 400); return;
+  }
+  const reflexMatch = !minigameUnlocked && Object.values(reflexGames).find(g => g.cmd === cmd && (g.cmd!=='syncup2' || syncup2Unlocked));
+  if (reflexMatch) {
+    append('<span class="warn">Calibrating sync protocol...</span>');
+    setTimeout(() => startReflex(reflexMatch), 400); return;
+  }
+  if (cmd === musicCmd) {
+    append('<span class="warn">Opening media module...</span>');
+    setTimeout(() => openMusicPlayer(), 400); return;
+  }
+  if (cmd === videoCmd) {
+    append('<span class="warn">Opening media module...</span>');
+    setTimeout(() => openVideoPlayer(), 400); return;
+  }
+  if (cmd === minigameCmd && minigameUnlocked) {
+    append('<span class="warn">Loading minigame archive...</span>');
+    setTimeout(() => openMinigameMenu(), 400); return;
+  }
+  append('<span class="err">\''+raw+'\' is not recognized as an internal\nor external command, operable program or batch file.</span>');
+});
+
+function append(html) {
+  out.innerHTML += html + '\n';
+  out.scrollTop = out.scrollHeight;
+}
+
+/* ═══════════════════════════════════════
+   HACKING MINIGAME
+   ═══════════════════════════════════════ */
+const WORDLIST = ['REACTS','STATIC','VECTOR','CIPHER','BUNKER','SENTRY','MODULE','ENGINE','SIGNAL','FUSION','HOLLOW','BREACH','RADIUS','SYSTEM','ANCHOR','MATRIX','BEACON','SHADOW','ACCESS','ACTIVE','ADVICE','ARMORY','ASSIGN','ATTACK','AUTHOR','BACKUP','BINARY','BORDER','BOTNET','BRIDGE','BUFFER','BUNDLE','BURROW','CACHES','CAMERA','CANNON','CARBON','CASTLE','CENTER','CIRCLE','CLAMOR','CLOSED','CODING','COFFEE','COLONY','COMBAT','COMMIT','CONVEY','COOLER','COPIES','COSMOS','COUPLE','COURSE','COVERT','CRATER','CREDIT','CRISIS','CRYPTO','CURFEW','CUSTOM','DAMAGE','DANGER','DECODE','DEFEAT','DEFEND','DELETE','DEMAND','DENIAL','DEPLOY','DESERT','DETECT','DEVICE','DIGITS','DOMAIN','DOSAGE','DOUBLE','DRIVER','DUPLEX','ECHOED','EJECTS','EMBLEM','EMPIRE','ENABLE','ENCODE','ENDING','ENTITY','ESCAPE','ESCORT','ETHNIC','EVOLVE','EXCEED','EXPAND','EXPERT','EXPORT','EXTEND','FACTOR','FAILED','FALLEN','FAMILY','FASTER'];
+const BRACKET_PAIRS = ['()','[]','{}','<>'];
+const JUNK = '!@#$%^&*_-+=~|;:,.?/\\'.split('');
+let hackState = null;
+
+function randInt(n) { return Math.floor(Math.random()*n); }
+
+function sameLetterCount(a,b) {
+  let s=0; for(let i=0;i<a.length;i++) if(a[i]===b[i]) s++; return s;
+}
+
+function buildHackPool(wordLen) {
+  const pool=[...new Set(WORDLIST.filter(w=>w.length===wordLen))];
+  for(let attempt=0;attempt<30;attempt++){
+    const shuffled=[...pool].sort(()=>Math.random()-0.5).slice(0,8);
+    if(shuffled.length<4) continue;
+    const answer=shuffled[randInt(shuffled.length)];
+    const ambiguous=shuffled.filter((w,i)=>w!==answer&&sameLetterCount(w,answer)===wordLen).length;
+    if(ambiguous===0) return {candidates:shuffled,answer};
+  }
+  const fallback=[...pool].sort(()=>Math.random()-0.5).slice(0,8);
+  return {candidates:fallback,answer:fallback[0]};
+}
+
+function startHack(target) {
+  const {candidates,answer}=buildHackPool(6);
+  hackState={target,answer,candidates,attemptsLeft:4,locked:false,history:[]};
+  document.getElementById('hackOverlay').classList.add('active');
+  document.getElementById('hackFeed').innerHTML='';
+  document.getElementById('hackHistory').innerHTML='';
+  renderAttempts();
+  feed('<span class="warn">LILUXSARU TERMLINK PROTOCOL</span>');
+  feed('ENTER PASSWORD NOW');
+  renderHackGrid();
+}
+
+function renderAttempts(){
+  const wrap=document.getElementById('hackAttempts');
+  wrap.innerHTML='';
+  for(let i=0;i<4;i++){
+    const d=document.createElement('div');
+    d.className='hack-attempt-dot'+(i>=hackState.attemptsLeft?' used':'');
+    wrap.appendChild(d);
+  }
+}
+
+function feed(html){
+  const f=document.getElementById('hackFeed');
+  const p=document.createElement('div');
+  p.innerHTML=html; f.appendChild(p); f.scrollTop=f.scrollHeight;
+}
+
+function addrLabel(i){ return '0x'+(0xF000+i*8).toString(16).toUpperCase(); }
+
+function genJunk(len){
+  let s='',i=0;
+  while(i<len){
+    if(Math.random()<0.12&&i<len-1){s+=BRACKET_PAIRS[randInt(BRACKET_PAIRS.length)];i+=2;}
+    else{s+=JUNK[randInt(JUNK.length)];i++;}
+  }
+  return s.slice(0,len);
+}
+
+function renderHackGrid(){
+  const colA=document.getElementById('hackColA');
+  const colB=document.getElementById('hackColB');
+  colA.innerHTML=''; colB.innerHTML='';
+  const colWidth=colA.clientWidth||200,colHeight=colA.clientHeight||300;
+  const lineLen=Math.max(10,Math.min(20,Math.floor((colWidth-60-30)/9.5)));
+  const totalLines=Math.max(8,Math.min(20,Math.floor(colHeight/24)));
+  const placements=[];
+  hackState.candidates.forEach(w=>{
+    let tries=0;
+    while(tries<20){
+      const line=randInt(totalLines),col=randInt(2),startPos=randInt(lineLen-w.length);
+      const overlap=placements.some(p=>p.line===line&&p.col===col&&!(startPos+w.length<=p.start||startPos>=p.start+p.len));
+      if(!overlap){placements.push({word:w,line,col,start:startPos,len:w.length});break;}
+      tries++;
+    }
+  });
+  for(let l=0;l<totalLines;l++){
+    [0,1].forEach(ci=>{
+      const lineWords=placements.filter(p=>p.line===l&&p.col===ci).sort((a,b)=>a.start-b.start);
+      let cursor=0;
+      const rowEl=document.createElement('div'); rowEl.className='hack-line';
+      const addr=document.createElement('span'); addr.className='hack-addr'; addr.textContent=addrLabel(l+ci*totalLines); rowEl.appendChild(addr);
+      const bytesEl=document.createElement('span'); bytesEl.className='hack-bytes';
+      function pushJunk(len){
+        const str=genJunk(len); let i=0;
+        while(i<str.length){
+          if(Math.random()<0.12&&i<str.length-1){
+            const pair=BRACKET_PAIRS[randInt(BRACKET_PAIRS.length)];
+            const span=document.createElement('span'); span.className='hack-tok bracket'; span.textContent=pair; span.dataset.value=pair; span.tabIndex=0;
+            bytesEl.appendChild(span); i+=2;
+          } else {
+            const span=document.createElement('span'); span.className='hack-tok'; span.textContent=str[i]; bytesEl.appendChild(span); i++;
+          }
+        }
+      }
+      lineWords.forEach(w=>{
+        const gap=w.start-cursor; if(gap>0) pushJunk(gap);
+        const span=document.createElement('span'); span.className='hack-tok candidate'; span.textContent=w.word; span.dataset.value=w.word; span.tabIndex=0;
+        bytesEl.appendChild(span); cursor=w.start+w.len;
+      });
+      if(cursor<lineLen) pushJunk(lineLen-cursor);
+      rowEl.appendChild(bytesEl);
+      (ci===0?colA:colB).appendChild(rowEl);
+    });
+  }
+  document.querySelectorAll('.hack-tok.candidate').forEach(el=>el.addEventListener('click',()=>guessWord(el)));
+  document.querySelectorAll('.hack-tok.bracket').forEach(el=>el.addEventListener('click',()=>useBracket(el)));
+  buildHackNavLists();
+  focusHackToken(0,0);
+}
+
+let hackNav=null;
+function buildHackNavLists(){
+  const colAEls = Array.from(document.querySelectorAll('#hackColA .hack-tok.candidate, #hackColA .hack-tok.bracket'));
+  const colBEls = Array.from(document.querySelectorAll('#hackColB .hack-tok.candidate, #hackColB .hack-tok.bracket'));
+  hackNav = { cols: [colAEls, colBEls], col: 0, idx: 0 };
+}
+
+function focusHackToken(col, idx){
+  if(!hackNav) return;
+  const list = hackNav.cols[col];
+  if(!list || !list.length) return;
+  idx = Math.max(0, Math.min(idx, list.length-1));
+  hackNav.col = col; hackNav.idx = idx;
+  list[idx].focus({preventScroll:false});
+}
+
+document.addEventListener('keydown', e=>{
+  if(!hackState || hackState.locked) return;
+  if(!document.getElementById('hackOverlay').classList.contains('active')) return;
+  if(!hackNav) return;
+  const list = hackNav.cols[hackNav.col];
+  if(e.key==='ArrowDown'){ e.preventDefault(); focusHackToken(hackNav.col, hackNav.idx+1); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); focusHackToken(hackNav.col, hackNav.idx-1); }
+  else if(e.key==='ArrowRight'){ e.preventDefault(); if(hackNav.col===0) focusHackToken(1, hackNav.idx); }
+  else if(e.key==='ArrowLeft'){ e.preventDefault(); if(hackNav.col===1) focusHackToken(0, hackNav.idx); }
+  else if(e.key===' '||e.key==='Spacebar'||e.key==='Enter'){
+    e.preventDefault();
+    const el = list && list[hackNav.idx];
+    if(el) el.click();
+  }
+});
+
+function useBracket(el){
+  if(hackState.locked) return;
+  el.classList.add('touched');
+  if(Math.random()<0.5){
+    hackState.attemptsLeft=Math.min(4,hackState.attemptsLeft+1);
+    feed('<span class="ok">DUD REMOVED. ATTEMPT RESTORED.</span>');
+  } else {
+    const wrong=hackState.candidates.filter(w=>w!==hackState.answer);
+    if(wrong.length>1){
+      const rem=wrong[randInt(wrong.length)];
+      hackState.candidates=hackState.candidates.filter(w=>w!==rem);
+      feed('<span class="warn">DUD REMOVED: '+rem+'</span>');
+      renderHackGrid();
+    } else { feed('<span class="warn">NO EFFECT.</span>'); }
+  }
+  renderAttempts(); setTimeout(()=>el.classList.remove('touched'),200);
+}
+
+function renderHistory(){
+  const wrap=document.getElementById('hackHistory'); wrap.innerHTML='';
+  hackState.history.forEach(h=>{
+    const row=document.createElement('div'); row.className='hack-history-row';
+    row.innerHTML='<span>'+h.word+'</span><span class="hh-match">'+h.same+'/'+h.word.length+'</span>';
+    wrap.appendChild(row);
+  });
+}
+
+function guessWord(el){
+  if(hackState.locked) return;
+  const word=(el.dataset.value||'').trim().toUpperCase();
+  const answer=(hackState.answer||'').trim().toUpperCase();
+  feed('&gt; '+word);
+  if(word===answer){
+    hackState.locked=true;
+    feed('<span class="ok">ACCESS GRANTED</span>');
+    el.classList.add('touched');
+    setTimeout(()=>{
+      window.open(pickHackRewardUrl(), '_blank');
+      document.getElementById('hackOverlay').classList.remove('active');
+      append('<span class="ok">OVERRIDE SUCCESS</span> — external node opened in a new tab.');
+      input.focus();
+    },700);
+    return;
+  }
+  hackState.attemptsLeft--;
+  const same=sameLetterCount(word,answer);
+  hackState.history.push({word,same}); renderHistory();
+  feed('<span class="err">ENTRY DENIED</span> &mdash; <span class="warn">'+same+'/'+word.length+' CORRECT</span>');
+  renderAttempts();
+  if(hackState.attemptsLeft<=0){
+    hackState.locked=true;
+    feed('<span class="err">TERMINAL LOCKED</span>');
+    feed('<span class="dim">REDIRECTING...</span>');
+    setTimeout(()=>{ window.location.href=hackState.target.failUrl||'/'; },1200);
+  }
+}
+
+window.addEventListener('resize',()=>{
+  if(hackState&&document.getElementById('hackOverlay').classList.contains('active')&&!hackState.locked) renderHackGrid();
+});
+
+/* ═══════════════════════════════════════
+   REFLEX MINIGAME
+   ═══════════════════════════════════════ */
+let reflexState=null, reflexAnimFrame=null, reflexTimerInterval=null;
+const reflexOverlay   = document.getElementById('reflexOverlay');
+const reflexLabel     = document.getElementById('reflexLabel');
+const reflexRoundEl   = document.getElementById('reflexRound');
+const reflexTimerEl   = document.getElementById('reflexTimer');
+const reflexInstr     = document.getElementById('reflexInstructions');
+const reflexTrack     = document.querySelector('.reflex-track');
+const reflexZone      = document.getElementById('reflexZone');
+const reflexBarEl     = document.getElementById('reflexBar');
+const reflexButton    = document.getElementById('reflexButton');
+const reflexResult    = document.getElementById('reflexResult');
+
+function startReflex(config){
+  reflexState={config,round:1,totalRounds:config.rounds,hits:0,direction:1,position:0,speed:1.6,zoneStart:0,zoneWidth:0,locked:false,awaitingTap:true,timeLeft:config.timeLimit||10};
+  reflexLabel.textContent=config.label;
+  reflexOverlay.classList.add('active');
+  reflexResult.textContent='\u00A0'; reflexResult.className='reflex-result';
+  startReflexTimer();
+  setupReflexRound();
+}
+
+function startReflexTimer(){
+  clearInterval(reflexTimerInterval);
+  reflexState.timeLeft=reflexState.config.timeLimit||10;
+  updateReflexTimerDisplay();
+  reflexTimerInterval=setInterval(()=>{
+    if(!reflexState||reflexState.locked){ clearInterval(reflexTimerInterval); return; }
+    reflexState.timeLeft--;
+    updateReflexTimerDisplay();
+    if(reflexState.timeLeft<=0){ clearInterval(reflexTimerInterval); reflexTimeout(); }
+  },1000);
+}
+
+function updateReflexTimerDisplay(){
+  const t=Math.max(0,reflexState.timeLeft);
+  reflexTimerEl.textContent=t+'s';
+  reflexTimerEl.classList.toggle('low', t<=3);
+}
+
+function reflexTimeout(){
+  if(!reflexState||reflexState.locked) return;
+  reflexState.locked=true; cancelAnimationFrame(reflexAnimFrame);
+  reflexResult.textContent="TIME'S UP"; reflexResult.className='reflex-result lose';
+  reflexInstr.textContent='SYNC FAILED';
+  setTimeout(()=>{ reflexOverlay.classList.remove('active'); append('<span class="err">Sync test failed — time expired.</span>'); input.focus(); },1200);
+}
+
+function setupReflexRound(){
+  const cfg=reflexState.config;
+  const zoneBase=cfg.zoneBase!==undefined?cfg.zoneBase:0.22;
+  const zonePerRound=cfg.zonePerRound!==undefined?cfg.zonePerRound:0.02;
+  const speedBase=cfg.speedBase!==undefined?cfg.speedBase:1.8;
+  const speedPerRound=cfg.speedPerRound!==undefined?cfg.speedPerRound:0.6;
+  const tw=reflexTrack.clientWidth||320;
+  const zw=Math.max(40,tw*(zoneBase-reflexState.round*zonePerRound));
+  const zs=20+Math.random()*Math.max(10,tw-zw-40);
+  reflexState.zoneStart=zs; reflexState.zoneWidth=zw;
+  reflexState.position=0; reflexState.direction=1;
+  reflexState.speed=speedBase+reflexState.round*speedPerRound; reflexState.awaitingTap=true;
+  reflexZone.style.left=zs+'px'; reflexZone.style.width=zw+'px';
+  reflexRoundEl.textContent='ROUND '+reflexState.round+'/'+reflexState.totalRounds;
+  reflexInstr.textContent='TAP WHEN THE BAR HITS THE ZONE (SPACE / ENTER ALSO WORKS)';
+  cancelAnimationFrame(reflexAnimFrame); reflexAnimLoop();
+}
+
+function reflexAnimLoop(){
+  if(!reflexState||reflexState.locked) return;
+  const tw=reflexTrack.clientWidth||320;
+  reflexState.position+=reflexState.direction*reflexState.speed;
+  if(reflexState.position>=tw-4){reflexState.position=tw-4;reflexState.direction=-1;}
+  if(reflexState.position<=0){reflexState.position=0;reflexState.direction=1;}
+  reflexBarEl.style.left=reflexState.position+'px';
+  reflexAnimFrame=requestAnimationFrame(reflexAnimLoop);
+}
+
+reflexButton.addEventListener('click',()=>{
+  if(!reflexState||reflexState.locked||!reflexState.awaitingTap) return;
+  reflexState.awaitingTap=false;
+  const inZone=reflexState.position>=reflexState.zoneStart&&reflexState.position<=(reflexState.zoneStart+reflexState.zoneWidth);
+  if(inZone){
+    reflexState.hits++;
+    if(reflexState.hits>=reflexState.totalRounds){ reflexWin(); }
+    else {
+      reflexResult.textContent='NICE! ROUND '+reflexState.hits+' CLEAR';
+      reflexResult.className='reflex-result win'; reflexState.round++;
+      setTimeout(()=>setupReflexRound(),600);
+    }
+  } else { reflexLose(); }
+});
+
+function reflexWin(){
+  reflexState.locked=true; cancelAnimationFrame(reflexAnimFrame); clearInterval(reflexTimerInterval);
+  reflexResult.textContent='SYNC COMPLETE'; reflexResult.className='reflex-result win';
+  reflexInstr.textContent='ACCESS GRANTED';
+  const isSyncupLevel1 = reflexState.config===reflexGames.syncup;
+  const isFirstMinigameUnlock = isSyncupLevel1 && !minigameUnlocked;
+  const isFirstSyncup2Unlock  = isSyncupLevel1 && !syncup2Unlocked;
+  if(isSyncupLevel1){ unlockMinigameMenu(); unlockSyncup2(); }
+  setTimeout(()=>{
+    if(reflexState.config.unlockUrl){ window.location.href=reflexState.config.unlockUrl; }
+    else {
+      reflexOverlay.classList.remove('active');
+      append('<span class="ok">Sync test passed.</span>');
+      if(isFirstMinigameUnlock){
+        append('<span class="hdr">NEW COMMAND UNLOCKED:</span> <span class="ok">MINIGAME</span> — type MINIGAME to open the arcade menu.');
+      }
+      if(isFirstSyncup2Unlock){
+        append('<span class="ok">NEW LEVEL UNLOCKED:</span> SYNC TEST II — check the minigame menu.');
+      }
+      input.focus();
+    }
+  },1200);
+}
+
+function reflexLose(){
+  reflexState.locked=true; cancelAnimationFrame(reflexAnimFrame); clearInterval(reflexTimerInterval);
+  reflexResult.textContent='MISSED IT'; reflexResult.className='reflex-result lose';
+  reflexInstr.textContent='SYNC FAILED';
+  setTimeout(()=>{ reflexOverlay.classList.remove('active'); append('<span class="err">Sync test failed.</span>'); input.focus(); },1200);
+}
+
+document.addEventListener('keydown', e=>{
+  if(!reflexOverlay.classList.contains('active')) return;
+  if(e.key===' '||e.key==='Spacebar'||e.key==='Enter'){
+    e.preventDefault();
+    reflexButton.click();
+  }
+});
+
+window.addEventListener('resize',()=>{
+  if(reflexState&&!reflexState.locked&&reflexOverlay.classList.contains('active')) setupReflexRound();
+});
+
+/* ═══════════════════════════════════════
+   MINIGAME MENU
+   ═══════════════════════════════════════ */
+const minigameMenuOverlay = document.getElementById('minigameMenuOverlay');
+const minigameListEl      = document.getElementById('minigameList');
+const minigameMenuClose   = document.getElementById('minigameMenuClose');
+
+function renderMinigameMenu(){
+  minigameListEl.innerHTML = '';
+  getMinigameMenuEntries().forEach(g=>{
+    const row = document.createElement('div');
+    row.className = 'minigame-entry';
+    row.tabIndex = 0;
+    row.innerHTML =
+      '<div class="minigame-entry-icon">'+g.icon+'</div>'+
+      '<div class="minigame-entry-info">'+
+        '<div class="minigame-entry-title">'+g.title+'</div>'+
+        '<div class="minigame-entry-desc">'+g.desc+'</div>'+
+      '</div>'+
+      '<div class="minigame-entry-arrow">&#9654;</div>';
+    row.addEventListener('click', g.action);
+    minigameListEl.appendChild(row);
+  });
+}
+
+function openMinigameMenu(){
+  renderMinigameMenu();
+  minigameMenuOverlay.classList.add('active');
+  const first = minigameListEl.querySelector('.minigame-entry');
+  if(first) first.focus();
+}
+function closeMinigameMenu(){
+  minigameMenuOverlay.classList.remove('active');
+}
+minigameMenuClose.addEventListener('click', ()=>{ closeMinigameMenu(); input.focus(); });
+
+document.addEventListener('keydown', e=>{
+  if(!minigameMenuOverlay.classList.contains('active')) return;
+  const rows = Array.from(minigameListEl.querySelectorAll('.minigame-entry'));
+  if(!rows.length) return;
+  const idx = rows.indexOf(document.activeElement);
+  if(e.key==='ArrowDown'){ e.preventDefault(); rows[(idx+1+rows.length)%rows.length].focus(); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); rows[(idx-1+rows.length)%rows.length].focus(); }
+  else if(e.key===' '||e.key==='Spacebar'||e.key==='Enter'){
+    if(idx>=0){ e.preventDefault(); rows[idx].click(); }
+  }
+});
+
+/* ═══════════════════════════════════════
+   PONG BREAKOUT MINIGAME
+   ═══════════════════════════════════════ */
+let breakoutState=null, breakoutRAF=null, breakoutLevelIndex=0;
+const breakoutOverlay  = document.getElementById('breakoutOverlay');
+const breakoutCanvas   = document.getElementById('breakoutCanvas');
+const breakoutCtx      = breakoutCanvas.getContext('2d');
+const breakoutScoreEl  = document.getElementById('breakoutScore');
+const breakoutLivesEl  = document.getElementById('breakoutLives');
+const breakoutMsgEl    = document.getElementById('breakoutMsg');
+const breakoutClose    = document.getElementById('breakoutClose');
+const breakoutTitleEl  = document.getElementById('breakoutTitle');
+
+/* Level 0 is the base game; level 1 unlocks after clearing level 0 once. */
+const breakoutLevels = [
+  { rows: 5, cols: 8,  ballSpeed: 5,   label: 'PONG BREAKOUT' },
+  { rows: 6, cols: 10, ballSpeed: 6.5, label: 'PONG BREAKOUT II' },
+];
+
+function startBreakout(levelIndex){
+  breakoutLevelIndex = levelIndex || 0;
+  breakoutTitleEl.textContent = breakoutLevels[breakoutLevelIndex].label;
+  breakoutOverlay.classList.add('active');
+  breakoutMsgEl.classList.remove('active');
+  resizeBreakoutCanvas();
+  initBreakoutLevel();
+  cancelAnimationFrame(breakoutRAF);
+  breakoutLoop();
+}
+
+function resizeBreakoutCanvas(){
+  const stage = breakoutCanvas.parentElement;
+  breakoutCanvas.width = stage.clientWidth;
+  breakoutCanvas.height = stage.clientHeight;
+  if(breakoutState){ layoutBreakoutBricks(); resetBreakoutPaddleAndBall(); }
+}
+
+function initBreakoutLevel(){
+  const lvl = breakoutLevels[breakoutLevelIndex];
+  breakoutState = {
+    score:0, lives:3, playing:false, over:false,
+    paddle:{w:0,h:12,x:0,y:0,speed:7},
+    ball:{x:0,y:0,r:6,dx:0,dy:0,speed:lvl.ballSpeed},
+    bricks:[],
+    keys:{left:false,right:false}
+  };
+  layoutBreakoutBricks();
+  resetBreakoutPaddleAndBall();
+  updateBreakoutHud();
+}
+
+function layoutBreakoutBricks(){
+  const w=breakoutCanvas.width;
+  const lvl=breakoutLevels[breakoutLevelIndex];
+  const rows=lvl.rows, cols=lvl.cols, pad=4, top=40, sideMargin=10;
+  const brickW=(w-sideMargin*2-(cols-1)*pad)/cols, brickH=16;
+  const colors=['#ff4d6d','#ff9f4d','#ffe14d','#7dff7d','#4dd2ff'];
+  const bricks=[];
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      bricks.push({ x:sideMargin+c*(brickW+pad), y:top+r*(brickH+pad), w:brickW, h:brickH, alive:true, color:colors[r%colors.length] });
+    }
+  }
+  breakoutState.bricks = bricks;
+}
+
+function resetBreakoutPaddleAndBall(){
+  const st=breakoutState, w=breakoutCanvas.width, h=breakoutCanvas.height;
+  st.paddle.w = Math.max(60, w*0.18);
+  st.paddle.x = w/2 - st.paddle.w/2;
+  st.paddle.y = h - 28;
+  st.ball.x = st.paddle.x + st.paddle.w/2;
+  st.ball.y = st.paddle.y - st.ball.r - 1;
+  st.ball.dx = 0; st.ball.dy = 0;
+  st.playing = false;
+}
+
+function launchBreakoutBall(){
+  if(!breakoutState || breakoutState.playing || breakoutState.over) return;
+  const st=breakoutState, speed=st.ball.speed;
+  const angle=(Math.random()*0.5+0.25)*Math.PI;
+  st.ball.dx = speed*Math.cos(angle)*(Math.random()<0.5?-1:1);
+  st.ball.dy = -Math.abs(speed*Math.sin(angle));
+  st.playing = true;
+}
+
+function breakoutLoop(){
+  if(!breakoutOverlay.classList.contains('active')){ cancelAnimationFrame(breakoutRAF); return; }
+  updateBreakout();
+  drawBreakout();
+  breakoutRAF = requestAnimationFrame(breakoutLoop);
+}
+
+function updateBreakout(){
+  if(!breakoutState || breakoutState.over) return;
+  const st=breakoutState, w=breakoutCanvas.width, h=breakoutCanvas.height;
+  if(st.keys.left) st.paddle.x -= st.paddle.speed;
+  if(st.keys.right) st.paddle.x += st.paddle.speed;
+  st.paddle.x = Math.max(0, Math.min(w-st.paddle.w, st.paddle.x));
+
+  if(!st.playing){
+    st.ball.x = st.paddle.x + st.paddle.w/2;
+    st.ball.y = st.paddle.y - st.ball.r - 1;
+    return;
+  }
+
+  st.ball.x += st.ball.dx;
+  st.ball.y += st.ball.dy;
+
+  if(st.ball.x-st.ball.r<=0){ st.ball.x=st.ball.r; st.ball.dx*=-1; }
+  if(st.ball.x+st.ball.r>=w){ st.ball.x=w-st.ball.r; st.ball.dx*=-1; }
+  if(st.ball.y-st.ball.r<=0){ st.ball.y=st.ball.r; st.ball.dy*=-1; }
+
+  if(st.ball.dy>0 && st.ball.y+st.ball.r>=st.paddle.y && st.ball.y+st.ball.r<=st.paddle.y+st.paddle.h+8 &&
+     st.ball.x>=st.paddle.x && st.ball.x<=st.paddle.x+st.paddle.w){
+    st.ball.y = st.paddle.y - st.ball.r;
+    const hitPos = (st.ball.x-(st.paddle.x+st.paddle.w/2))/(st.paddle.w/2);
+    const speed = Math.hypot(st.ball.dx,st.ball.dy);
+    const angle = hitPos*(Math.PI/3);
+    st.ball.dx = speed*Math.sin(angle);
+    st.ball.dy = -Math.abs(speed*Math.cos(angle));
+  }
+
+  for(const b of st.bricks){
+    if(!b.alive) continue;
+    if(st.ball.x+st.ball.r>b.x && st.ball.x-st.ball.r<b.x+b.w && st.ball.y+st.ball.r>b.y && st.ball.y-st.ball.r<b.y+b.h){
+      b.alive=false; st.score+=10;
+      const overlapLeft=(st.ball.x+st.ball.r)-b.x, overlapRight=(b.x+b.w)-(st.ball.x-st.ball.r);
+      const overlapTop=(st.ball.y+st.ball.r)-b.y, overlapBottom=(b.y+b.h)-(st.ball.y-st.ball.r);
+      if(Math.min(overlapLeft,overlapRight) < Math.min(overlapTop,overlapBottom)) st.ball.dx*=-1; else st.ball.dy*=-1;
+      updateBreakoutHud();
+      break;
+    }
+  }
+
+  if(st.ball.y-st.ball.r>h){
+    st.lives--; updateBreakoutHud();
+    if(st.lives<=0) breakoutGameOver(); else resetBreakoutPaddleAndBall();
+  }
+
+  if(st.bricks.every(b=>!b.alive)) breakoutWin();
+}
+
+function drawBreakout(){
+  const ctx=breakoutCtx, w=breakoutCanvas.width, h=breakoutCanvas.height;
+  ctx.clearRect(0,0,w,h);
+  if(!breakoutState) return;
+  const st=breakoutState;
+  st.bricks.forEach(b=>{
+    if(!b.alive) return;
+    ctx.fillStyle=b.color; ctx.shadowColor=b.color; ctx.shadowBlur=6;
+    ctx.fillRect(b.x,b.y,b.w,b.h);
+  });
+  ctx.shadowBlur=0;
+  const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()||'#0f0';
+  ctx.fillStyle=primaryColor; ctx.shadowColor=primaryColor; ctx.shadowBlur=10;
+  ctx.fillRect(st.paddle.x, st.paddle.y, st.paddle.w, st.paddle.h);
+  ctx.beginPath(); ctx.arc(st.ball.x, st.ball.y, st.ball.r, 0, Math.PI*2);
+  ctx.fillStyle='#fff'; ctx.shadowColor='#fff'; ctx.shadowBlur=10; ctx.fill();
+  ctx.shadowBlur=0;
+}
+
+function updateBreakoutHud(){
+  breakoutScoreEl.textContent='SCORE: '+breakoutState.score;
+  breakoutLivesEl.textContent='LIVES: '+Math.max(0,breakoutState.lives);
+}
+
+function breakoutGameOver(){
+  breakoutState.over=true;
+  breakoutMsgEl.innerHTML='GAME OVER<span class="small">SCORE: '+breakoutState.score+' &mdash; SPACE OR TAP TO RETRY</span>';
+  breakoutMsgEl.classList.add('active');
+}
+function breakoutWin(){
+  breakoutState.over=true;
+  const isFirstBreakoutWin = (breakoutLevelIndex===0 && !breakout2Unlocked);
+  if(breakoutLevelIndex===0) unlockBreakout2();
+  let msg='WALL CLEARED<span class="small">SCORE: '+breakoutState.score+' &mdash; SPACE OR TAP TO PLAY AGAIN</span>';
+  if(isFirstBreakoutWin) msg+='<span class="small" style="color:var(--bright);">NEW LEVEL UNLOCKED — PONG BREAKOUT II IN THE MINIGAME MENU</span>';
+  breakoutMsgEl.innerHTML=msg;
+  breakoutMsgEl.classList.add('active');
+}
+
+function closeBreakout(){
+  breakoutOverlay.classList.remove('active');
+  cancelAnimationFrame(breakoutRAF);
+  breakoutState=null;
+  breakoutMsgEl.classList.remove('active');
+}
+breakoutClose.addEventListener('click', ()=>{ closeBreakout(); input.focus(); });
+
+document.addEventListener('keydown', e=>{
+  if(!breakoutOverlay.classList.contains('active')) return;
+  if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A'){ e.preventDefault(); if(breakoutState) breakoutState.keys.left=true; }
+  else if(e.key==='ArrowRight'||e.key==='d'||e.key==='D'){ e.preventDefault(); if(breakoutState) breakoutState.keys.right=true; }
+  else if(e.key===' '||e.key==='Spacebar'||e.key==='Enter'){
+    e.preventDefault();
+    if(breakoutState && breakoutState.over){ initBreakoutLevel(); breakoutMsgEl.classList.remove('active'); }
+    else { launchBreakoutBall(); }
+  }
+});
+document.addEventListener('keyup', e=>{
+  if(!breakoutOverlay.classList.contains('active') || !breakoutState) return;
+  if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A'){ breakoutState.keys.left=false; }
+  else if(e.key==='ArrowRight'||e.key==='d'||e.key==='D'){ breakoutState.keys.right=false; }
+});
+
+function breakoutPointerMove(clientX){
+  if(!breakoutState) return;
+  const rect=breakoutCanvas.getBoundingClientRect();
+  const x=clientX-rect.left;
+  breakoutState.paddle.x = Math.max(0, Math.min(breakoutCanvas.width-breakoutState.paddle.w, x-breakoutState.paddle.w/2));
+}
+breakoutCanvas.addEventListener('pointermove', e=>{ breakoutPointerMove(e.clientX); });
+breakoutCanvas.addEventListener('pointerdown', e=>{
+  breakoutPointerMove(e.clientX);
+  if(breakoutState && breakoutState.over){ initBreakoutLevel(); breakoutMsgEl.classList.remove('active'); }
+  else { launchBreakoutBall(); }
+});
+
+window.addEventListener('resize', ()=>{
+  if(breakoutOverlay.classList.contains('active')) resizeBreakoutCanvas();
+});
+
+/* ═══════════════════════════════════════
+   SOKOBAN MINIGAME — random generated box-pushing
+   levels. Levels are built by starting from a SOLVED
+   state (boxes already on their targets) and then
+   playing it backwards ("pulling" boxes instead of
+   pushing them) a bunch of random, legal steps. Every
+   pull is the exact mirror of a push, so replaying the
+   scramble in reverse always solves the puzzle — this
+   guarantees a solution exists no matter how it comes
+   out, without ever needing to search/solve the level.
+   ═══════════════════════════════════════ */
+const sokobanLevels = [
+  { size:7, boxes:2, obstacles:2, scrambleSteps:150, label:'BOX RUN' },
+  { size:9, boxes:3, obstacles:6, scrambleSteps:220, label:'BOX RUN II' },
+];
+let sokobanState=null, sokobanLevelIndex=0, sokobanInitial=null, sokobanTouch=null;
+const sokobanOverlay   = document.getElementById('sokobanOverlay');
+const sokobanStageEl   = document.getElementById('sokobanStage');
+const sokobanGridEl    = document.getElementById('sokobanGrid');
+const sokobanMsgEl     = document.getElementById('sokobanMsg');
+const sokobanTitleEl   = document.getElementById('sokobanTitle');
+const sokobanMovesEl   = document.getElementById('sokobanMoves');
+const sokobanClose     = document.getElementById('sokobanClose');
+const sokobanResetBtn  = document.getElementById('sokobanResetBtn');
+const SK_DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
+
+function skKey(r,c){ return r+','+c; }
+
+function generateSokobanLevel(levelIndex){
+  const lvl = sokobanLevels[levelIndex];
+  const n = lvl.size;
+  for(let attempt=0; attempt<200; attempt++){
+    const walls = new Set();
+    for(let r=0;r<n;r++) for(let c=0;c<n;c++){
+      if(r===0||c===0||r===n-1||c===n-1) walls.add(skKey(r,c));
+    }
+    let placed=0, tries=0;
+    while(placed<lvl.obstacles && tries<200){
+      tries++;
+      const r=1+randInt(n-2), c=1+randInt(n-2);
+      const k=skKey(r,c);
+      if(walls.has(k)) continue;
+      walls.add(k); placed++;
+    }
+    const floor=[];
+    for(let r=1;r<n-1;r++) for(let c=1;c<n-1;c++){
+      const k=skKey(r,c); if(!walls.has(k)) floor.push([r,c]);
+    }
+    if(floor.length < lvl.boxes*3+4) continue;
+
+    /* connectivity check — obstacles must not split the floor in two */
+    const seen=new Set(); const stack=[floor[0]]; seen.add(skKey(floor[0][0],floor[0][1]));
+    while(stack.length){
+      const [r,c]=stack.pop();
+      for(const [dr,dc] of SK_DIRS){
+        const nr=r+dr,nc=c+dc,k=skKey(nr,nc);
+        if(nr>0&&nr<n-1&&nc>0&&nc<n-1 && !walls.has(k) && !seen.has(k)){ seen.add(k); stack.push([nr,nc]); }
+      }
+    }
+    if(seen.size !== floor.length) continue;
+
+    const shuffledFloor=[...floor].sort(()=>Math.random()-0.5);
+    const targets = shuffledFloor.slice(0, lvl.boxes).map(([r,c])=>skKey(r,c));
+    const targetSet = new Set(targets);
+    let boxes = new Set(targets);
+
+    const remaining = shuffledFloor.slice(lvl.boxes);
+    if(remaining.length===0) continue;
+    let player = remaining[randInt(remaining.length)];
+    let playerKey = skKey(player[0],player[1]);
+
+    /* scramble by "pulling" — the exact reverse of a push, so the
+       scramble sequence run backwards is always a valid solution.
+       Each step either pulls a box that's currently adjacent to the
+       player (preferred, when available) or lets the player take an
+       independent walk step to reposition near a box — a pull-only
+       walk rarely finds itself next to a box by chance alone. */
+    let successfulPulls=0;
+    for(let step=0; step<lvl.scrambleSteps; step++){
+      const [pr,pc] = player;
+      const pullDirs = SK_DIRS.filter(([dr,dc])=>{
+        const boxK = skKey(pr+dr, pc+dc);
+        const newR=pr-dr, newC=pc-dc, newK=skKey(newR,newC);
+        return boxes.has(boxK) && newR>0&&newR<n-1&&newC>0&&newC<n-1 && !walls.has(newK) && !boxes.has(newK);
+      });
+      if(pullDirs.length && Math.random()<0.7){
+        const [dr,dc] = pullDirs[randInt(pullDirs.length)];
+        const boxK = skKey(pr+dr, pc+dc);
+        const newR=pr-dr, newC=pc-dc, newK=skKey(newR,newC);
+        boxes.delete(boxK);
+        boxes.add(playerKey);
+        player=[newR,newC]; playerKey=newK;
+        successfulPulls++;
+      } else {
+        const [dr,dc] = SK_DIRS[randInt(4)];
+        const wr=pr+dr, wc=pc+dc, wk=skKey(wr,wc);
+        if(wr>0&&wr<n-1&&wc>0&&wc<n-1 && !walls.has(wk) && !boxes.has(wk)){
+          player=[wr,wc]; playerKey=wk;
+        }
+      }
+    }
+    const minPulls = Math.max(4, lvl.boxes*2);
+    if(successfulPulls < minPulls) continue;
+    if([...boxes].every(b=>targetSet.has(b))) continue; /* already solved, retry */
+
+    return { n, walls, targetSet, boxes, player };
+  }
+  return buildFallbackSokobanLevel(lvl);
+}
+
+/* Hand-built, always-solvable puzzle used only if random generation
+   somehow exhausts every attempt (shouldn't happen, but this keeps
+   the game from ever showing a broken/empty board). */
+function buildFallbackSokobanLevel(lvl){
+  const n = Math.max(5, lvl.size);
+  const walls = new Set();
+  for(let r=0;r<n;r++) for(let c=0;c<n;c++){
+    if(r===0||c===0||r===n-1||c===n-1) walls.add(skKey(r,c));
+  }
+  const midR = Math.floor(n/2);
+  const targetSet = new Set();
+  const boxes = new Set();
+  let col = 2;
+  for(let i=0;i<lvl.boxes;i++){
+    const targetC = Math.min(n-2, col+2);
+    targetSet.add(skKey(midR, targetC));
+    boxes.add(skKey(midR, col));
+    col += 1;
+    if(col >= targetC) col = targetC+1;
+  }
+  const player = [midR, 1];
+  return { n, walls, targetSet, boxes, player };
+}
+
+function startSokoban(levelIndex){
+  sokobanLevelIndex = levelIndex || 0;
+  sokobanInitial = generateSokobanLevel(sokobanLevelIndex) || generateSokobanLevel(0);
+  sokobanTitleEl.textContent = sokobanLevels[sokobanLevelIndex].label;
+  sokobanOverlay.classList.add('active');
+  sokobanMsgEl.classList.remove('active');
+  resetSokobanState();
+  layoutSokobanGrid();
+}
+
+function resetSokobanState(){
+  const data = sokobanInitial;
+  sokobanState = {
+    n: data.n,
+    walls: data.walls,
+    targets: data.targetSet,
+    boxes: new Set(data.boxes),
+    player: [...data.player],
+    moves:0, pushes:0, won:false,
+    history: []
+  };
+  sokobanMsgEl.classList.remove('active');
+  updateSokobanHud();
+  renderSokoban();
+}
+
+function layoutSokobanGrid(){
+  const availW = sokobanStageEl.clientWidth - 28;
+  const availH = sokobanStageEl.clientHeight - 28;
+  const size = Math.max(120, Math.min(availW, availH));
+  sokobanGridEl.style.width = size+'px';
+  sokobanGridEl.style.height = size+'px';
+}
+
+function skIsWall(r,c){ return sokobanState.walls.has(skKey(r,c)); }
+function skHasBox(r,c){ return sokobanState.boxes.has(skKey(r,c)); }
+
+function sokobanPushHistory(){
+  sokobanState.history.push({ player:[...sokobanState.player], boxes:new Set(sokobanState.boxes) });
+  if(sokobanState.history.length>300) sokobanState.history.shift();
+}
+
+function sokobanMove(dr,dc){
+  if(!sokobanState || sokobanState.won) return;
+  const [pr,pc]=sokobanState.player;
+  const nr=pr+dr, nc=pc+dc;
+  if(skIsWall(nr,nc)) return;
+  if(skHasBox(nr,nc)){
+    const br=nr+dr, bc=nc+dc;
+    if(skIsWall(br,bc) || skHasBox(br,bc)) return;
+    sokobanPushHistory();
+    sokobanState.boxes.delete(skKey(nr,nc));
+    sokobanState.boxes.add(skKey(br,bc));
+    sokobanState.player=[nr,nc];
+    sokobanState.pushes++;
+  } else {
+    sokobanPushHistory();
+    sokobanState.player=[nr,nc];
+  }
+  sokobanState.moves++;
+  updateSokobanHud();
+  renderSokoban();
+  checkSokobanWin();
+}
+
+function undoSokoban(){
+  if(!sokobanState || sokobanState.won || !sokobanState.history.length) return;
+  const prev = sokobanState.history.pop();
+  sokobanState.player = prev.player;
+  sokobanState.boxes = prev.boxes;
+  sokobanState.moves = Math.max(0, sokobanState.moves-1);
+  updateSokobanHud();
+  renderSokoban();
+}
+
+function updateSokobanHud(){
+  sokobanMovesEl.textContent = 'MOVES: '+sokobanState.moves;
+}
+
+function renderSokoban(){
+  const st = sokobanState, n = st.n;
+  sokobanGridEl.style.gridTemplateColumns = 'repeat('+n+', 1fr)';
+  sokobanGridEl.style.gridTemplateRows = 'repeat('+n+', 1fr)';
+  let html='';
+  for(let r=0;r<n;r++){
+    for(let c=0;c<n;c++){
+      const k=skKey(r,c);
+      const isWall = st.walls.has(k);
+      const isTarget = st.targets.has(k);
+      let cls = 'sk-cell '+(isWall?'wall':'floor'+(isTarget?' target':''));
+      let inner='';
+      if(st.boxes.has(k)) inner += '<div class="sk-box'+(isTarget?' on-target':'')+'"></div>';
+      if(st.player[0]===r && st.player[1]===c) inner += '<div class="sk-player'+(isTarget?' on-target':'')+'"></div>';
+      html += '<div class="'+cls+'">'+inner+'</div>';
+    }
+  }
+  sokobanGridEl.innerHTML = html;
+}
+
+function checkSokobanWin(){
+  const allPlaced = [...sokobanState.boxes].every(b=>sokobanState.targets.has(b));
+  if(!allPlaced) return;
+  sokobanState.won = true;
+  const isFirstWin = (sokobanLevelIndex===0 && !sokoban2Unlocked);
+  if(sokobanLevelIndex===0) unlockSokoban2();
+  let msg = 'WAREHOUSE CLEAR<span class="small">MOVES: '+sokobanState.moves+' &mdash; PUSHES: '+sokobanState.pushes+'</span>';
+  if(isFirstWin) msg += '<span class="small" style="color:var(--bright);">NEW LEVEL UNLOCKED — BOX RUN II IN THE MINIGAME MENU</span>';
+  msg += '<span class="small">TAP RESET FOR A NEW LAYOUT, OR CLOSE</span>';
+  sokobanMsgEl.innerHTML = msg;
+  sokobanMsgEl.classList.add('active');
+}
+
+function closeSokoban(){
+  sokobanOverlay.classList.remove('active');
+  sokobanState = null;
+  sokobanMsgEl.classList.remove('active');
+}
+sokobanClose.addEventListener('click', ()=>{ closeSokoban(); input.focus(); });
+sokobanResetBtn.addEventListener('click', ()=>{ startSokoban(sokobanLevelIndex); });
+
+document.querySelectorAll('.sokoban-dbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const dir = btn.dataset.dir;
+    if(dir==='up') sokobanMove(-1,0);
+    else if(dir==='down') sokobanMove(1,0);
+    else if(dir==='left') sokobanMove(0,-1);
+    else if(dir==='right') sokobanMove(0,1);
+    else if(dir==='undo') undoSokoban();
+  });
+});
+
+document.addEventListener('keydown', e=>{
+  if(!sokobanOverlay.classList.contains('active') || !sokobanState) return;
+  if(e.key==='ArrowUp'||e.key==='w'||e.key==='W'){ e.preventDefault(); sokobanMove(-1,0); }
+  else if(e.key==='ArrowDown'||e.key==='s'||e.key==='S'){ e.preventDefault(); sokobanMove(1,0); }
+  else if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A'){ e.preventDefault(); sokobanMove(0,-1); }
+  else if(e.key==='ArrowRight'||e.key==='d'||e.key==='D'){ e.preventDefault(); sokobanMove(0,1); }
+  else if(e.key==='z'||e.key==='Z'||e.key==='Backspace'){ e.preventDefault(); undoSokoban(); }
+});
+
+sokobanStageEl.addEventListener('touchstart', e=>{
+  const t=e.touches[0]; sokobanTouch={x:t.clientX,y:t.clientY};
+}, {passive:true});
+sokobanStageEl.addEventListener('touchend', e=>{
+  if(!sokobanTouch) return;
+  const t=e.changedTouches[0];
+  const dx=t.clientX-sokobanTouch.x, dy=t.clientY-sokobanTouch.y;
+  const absX=Math.abs(dx), absY=Math.abs(dy);
+  sokobanTouch=null;
+  if(Math.max(absX,absY) < 20) return;
+  if(absX>absY) sokobanMove(0, dx>0?1:-1); else sokobanMove(dy>0?1:-1, 0);
+}, {passive:true});
+
+window.addEventListener('resize', ()=>{
+  if(sokobanOverlay.classList.contains('active')) layoutSokobanGrid();
+});
+
+/* ═══════════════════════════════════════
+   MUSIC PLAYER + BUTTERCHURN VISUALIZER
+   ═══════════════════════════════════════ */
+const musicOverlay  = document.getElementById('musicOverlay');
+const musicClose    = document.getElementById('musicClose');
+const vizToggleBtn  = document.getElementById('vizToggleBtn');
+const milkFullscreenBtn = document.getElementById('milkFullscreenBtn');
+const tracklistEl   = document.getElementById('musicTracklist');
+const nowPlayingEl  = document.getElementById('nowPlaying');
+const progressBar   = document.getElementById('progressBar');
+const progressWrap  = document.getElementById('progressWrap');
+const musicTimeEl   = document.getElementById('musicTime');
+const playBtn       = document.getElementById('playBtn');
+const prevBtn       = document.getElementById('prevBtn');
+const nextBtn       = document.getElementById('nextBtn');
+const shuffleBtn    = document.getElementById('shuffleBtn');
+const volSlider     = document.getElementById('volSlider');
+const milkCanvas    = document.getElementById('milkCanvas');
+const milkVizWrap   = document.getElementById('milkVizWrap');
+const milkFsExitBtn = document.getElementById('milkFsExitBtn');
+const musicSearchEl = document.getElementById('musicSearch');
+const filterArtistEl = document.getElementById('filterArtist');
+const filterAlbumEl  = document.getElementById('filterAlbum');
+const filterGenreEl  = document.getElementById('filterGenre');
+
+let audioEl = null, audioCtx = null, analyser = null, sourceNode = null;
+let currentTrack = -1, isShuffling = false, vizActive = false;
+let butterchurn = null, milkRenderer = null, milkAnimFrame = null;
+let butterchurnLoaded = false;
+let visibleIndices = tracks.map((_, i) => i); /* indices into `tracks` currently shown after search/filters */
+
+function fmt(s){ const m=Math.floor(s/60),sec=Math.floor(s%60); return m+':'+(sec<10?'0':'')+sec; }
+
+/* Tracks that match every active filter EXCEPT the one named in `excludeKey`.
+   Used to build each dropdown's option list from the other two selections. */
+function tracksMatchingOtherFilters(excludeKey){
+  return tracks.filter(t => {
+    if(excludeKey!=='artist' && filterArtistEl.value && t.artist !== filterArtistEl.value) return false;
+    if(excludeKey!=='album'  && filterAlbumEl.value  && t.album  !== filterAlbumEl.value)  return false;
+    if(excludeKey!=='genre'  && filterGenreEl.value  && t.genre  !== filterGenreEl.value)  return false;
+    return true;
+  });
+}
+
+/* Rebuild the Artist/Album/Genre dropdown OPTIONS so each one only offers values that
+   still make sense given the other two selections (e.g. picking an artist narrows
+   Album/Genre down to just that artist's albums/genres). Re-run any time a filter
+   changes, or any time tracks are added/edited at runtime. */
+function populateFilterOptions(){
+  const fields = [
+    { sel: filterArtistEl, key: 'artist', label: 'ARTIST' },
+    { sel: filterAlbumEl,  key: 'album',  label: 'ALBUM'  },
+    { sel: filterGenreEl,  key: 'genre',  label: 'GENRE'  },
+  ];
+  fields.forEach(({ sel, key, label }) => {
+    const current = sel.value;
+    const pool = tracksMatchingOtherFilters(key);
+    const values = [...new Set(pool.map(t => t[key]).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    sel.innerHTML = `<option value="">${label}: ALL</option>` + values.map(v => `<option value="${v}">${v}</option>`).join('');
+    /* keep the current selection only if it's still a valid option; otherwise it resets to ALL */
+    sel.value = values.includes(current) ? current : '';
+  });
+}
+
+/* Recompute visibleIndices from the search box + the three dropdowns, then redraw the list. */
+function applyMusicFilters(){
+  populateFilterOptions(); /* keep dropdown options in sync with each other first */
+
+  const q = musicSearchEl.value.trim().toLowerCase();
+  const wantArtist = filterArtistEl.value;
+  const wantAlbum  = filterAlbumEl.value;
+  const wantGenre  = filterGenreEl.value;
+
+  visibleIndices = tracks.reduce((acc, t, i) => {
+    if(wantArtist && t.artist !== wantArtist) return acc;
+    if(wantAlbum  && t.album  !== wantAlbum)  return acc;
+    if(wantGenre  && t.genre  !== wantGenre)  return acc;
+    if(q){
+      const hay = [t.title, t.artist, t.album, t.genre].filter(Boolean).join(' ').toLowerCase();
+      if(!hay.includes(q)) return acc;
+    }
+    acc.push(i);
+    return acc;
+  }, []);
+
+  buildTracklist();
+}
+
+[musicSearchEl, filterArtistEl, filterAlbumEl, filterGenreEl].forEach(el => {
+  const evt = el.tagName === 'SELECT' ? 'change' : 'input';
+  el.addEventListener(evt, applyMusicFilters);
+});
+
+function buildTracklist(){
+  tracklistEl.innerHTML='';
+  if(!visibleIndices.length){
+    tracklistEl.innerHTML='<div class="music-no-results">NO TRACKS MATCH</div>';
+    return;
+  }
+  visibleIndices.forEach((origIdx,pos)=>{
+    const t=tracks[origIdx];
+    const row=document.createElement('div'); row.className='music-track'; row.dataset.idx=origIdx;
+    if(origIdx===currentTrack) row.classList.add('playing');
+    const meta=[t.album,t.genre].filter(Boolean).join(' · ');
+    row.innerHTML=`<span class="music-track-num">${String(pos+1).padStart(2,'0')}</span>
+      <div class="music-track-info">
+        <div class="music-track-title">${t.title}</div>
+        <div class="music-track-artist">${t.artist}${meta?' · '+meta:''}</div>
+      </div>
+      <span class="music-track-dur" id="dur-${origIdx}">-:--</span>`;
+    row.addEventListener('click',()=>playTrack(origIdx));
+    tracklistEl.appendChild(row);
+  });
+}
+
+function openMusicPlayer(){
+  musicOverlay.classList.add('active');
+  if(vidPlayer && !vidPlayer.paused) vidPlayer.pause(); /* don't overlap with the video player */
+  if(ytPlayer && typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo();
+  if(!tracklistEl.children.length){
+    populateFilterOptions();
+    applyMusicFilters();
+  }
+}
+
+musicClose.addEventListener('click',()=>{
+  musicOverlay.classList.remove('active');
+  stopViz();
+  input.focus();
+});
+
+/* Audio init */
+function initAudio(){
+  if(!audioCtx){
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    analyser=audioCtx.createAnalyser();
+    analyser.fftSize=2048;
+    analyser.connect(audioCtx.destination);
+  }
+}
+
+function playTrack(idx){
+  if(idx==null || idx<0 || !tracks[idx]) return;
+  initAudio();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  if(audioEl){ audioEl.pause(); audioEl.src=''; }
+  currentTrack=idx;
+  document.querySelectorAll('.music-track').forEach(r=>r.classList.remove('playing'));
+  const row=document.querySelector('.music-track[data-idx="'+idx+'"]');
+  if(row){ row.classList.add('playing'); row.scrollIntoView({block:'nearest'}); }
+  audioEl=new Audio(tracks[idx].url);
+  audioEl.volume=parseFloat(volSlider.value);
+  audioEl.crossOrigin='anonymous';
+  if(sourceNode){ try{sourceNode.disconnect();}catch(e){} }
+  sourceNode=audioCtx.createMediaElementSource(audioEl);
+  sourceNode.connect(analyser);
+  audioEl.play().catch(()=>{});
+  nowPlayingEl.textContent=tracks[idx].title+' — '+tracks[idx].artist;
+  playBtn.innerHTML='&#9646;&#9646;';
+  audioEl.addEventListener('timeupdate',updateProgress);
+  audioEl.addEventListener('ended',()=>{ playTrack(getAdjacentIndex(1)); });
+  audioEl.addEventListener('loadedmetadata',()=>{
+    const dur=document.getElementById('dur-'+idx);
+    if(dur) dur.textContent=fmt(audioEl.duration);
+  });
+}
+
+/* Step forward/back (dir = 1 or -1) within whatever list is currently visible (search/filters applied).
+   Falls back to the full library if nothing is visible or nothing is playing yet. */
+function getAdjacentIndex(dir){
+  const list = visibleIndices.length ? visibleIndices : tracks.map((_,i)=>i);
+  if(!list.length) return -1;
+  if(isShuffling) return list[Math.floor(Math.random()*list.length)];
+  let pos = list.indexOf(currentTrack);
+  if(pos === -1) pos = 0;
+  else pos = (pos + dir + list.length) % list.length;
+  return list[pos];
+}
+
+function updateProgress(){
+  if(!audioEl||!audioEl.duration) return;
+  const pct=(audioEl.currentTime/audioEl.duration)*100;
+  progressBar.style.width=pct+'%';
+  musicTimeEl.textContent=fmt(audioEl.currentTime)+' / '+fmt(audioEl.duration);
+}
+
+playBtn.addEventListener('click',()=>{
+  if(!audioEl){const list=visibleIndices.length?visibleIndices:tracks.map((_,i)=>i); if(list.length) playTrack(list[0]); return;}
+  if(audioEl.paused){ audioEl.play(); playBtn.innerHTML='&#9646;&#9646;'; }
+  else { audioEl.pause(); playBtn.innerHTML='&#9654;'; }
+});
+prevBtn.addEventListener('click',()=>{ playTrack(getAdjacentIndex(-1)); });
+nextBtn.addEventListener('click',()=>{ playTrack(getAdjacentIndex(1)); });
+shuffleBtn.addEventListener('click',()=>{
+  isShuffling=!isShuffling;
+  shuffleBtn.classList.toggle('active-btn',isShuffling);
+});
+volSlider.addEventListener('input',()=>{ if(audioEl) audioEl.volume=parseFloat(volSlider.value); });
+progressWrap.addEventListener('click',e=>{
+  if(!audioEl||!audioEl.duration) return;
+  const rect=progressWrap.getBoundingClientRect();
+  audioEl.currentTime=((e.clientX-rect.left)/rect.width)*audioEl.duration;
+});
+
+/* Butterchurn / MilkDrop */
+let vizLoading = false;
+
+function loadButterchurn(cb, onError){
+  if(butterchurnLoaded){cb();return;}
+  const s1=document.createElement('script');
+  s1.src='https://cdn.jsdelivr.net/npm/butterchurn@2.6.7/lib/butterchurn.min.js';
+  s1.onload=()=>{
+    const s2=document.createElement('script');
+    s2.src='https://cdn.jsdelivr.net/npm/butterchurn-presets@2.4.7/lib/butterchurnPresets.min.js';
+    s2.onload=()=>{ butterchurnLoaded=true; cb(); };
+    s2.onerror=()=>{ onError('Failed to load preset pack.'); };
+    document.head.appendChild(s2);
+  };
+  s1.onerror=()=>{ onError('Failed to load visualizer engine.'); };
+  document.head.appendChild(s1);
+}
+
+function resolveButterchurnFactory(){
+  const bc = window.butterchurn;
+  if(!bc) return null;
+  const targets = [bc, bc.default].filter(Boolean);
+  for(const obj of targets){
+    if(typeof obj.createVisualizer === 'function') return obj.createVisualizer.bind(obj);
+    if(typeof obj.createRenderer === 'function') return obj.createRenderer.bind(obj);
+  }
+  console.error('Butterchurn loaded but no known factory function found. window.butterchurn =', bc);
+  return null;
+}
+
+function startViz(){
+  if(!analyser){ nowPlayingEl.textContent='PLAY A TRACK FIRST'; return; }
+  if(vizLoading) return;
+  vizLoading = true;
+  nowPlayingEl.textContent='LOADING VISUALIZER...';
+  loadButterchurn(()=>{
+    vizLoading = false;
+    try{
+      const makeVisualizer = resolveButterchurnFactory();
+      if(!makeVisualizer) throw new Error('No compatible Butterchurn API found (see console for window.butterchurn contents).');
+      milkVizWrap.classList.add('active');
+      milkCanvas.width=milkCanvas.clientWidth;
+      milkCanvas.height=milkCanvas.clientHeight;
+      milkRenderer=makeVisualizer(audioCtx,milkCanvas,{width:milkCanvas.width,height:milkCanvas.height});
+      const presets=window.butterchurnPresets.getPresets();
+      const presetKeys=Object.keys(presets);
+      milkRenderer.loadPreset(presets[presetKeys[Math.floor(Math.random()*presetKeys.length)]],0.0);
+      milkRenderer.connectAudio(analyser);
+      let presetTimer=setInterval(()=>{
+        const k=presetKeys[Math.floor(Math.random()*presetKeys.length)];
+        milkRenderer.loadPreset(presets[k],2.7);
+      },15000);
+      milkCanvas._presetTimer=presetTimer;
+      vizActive=true;
+      vizToggleBtn.textContent='TRACKLIST';
+      milkFullscreenBtn.classList.remove('hidden');
+      nowPlayingEl.textContent=currentTrack>=0?(tracks[currentTrack].title+' — '+tracks[currentTrack].artist):'-- SELECT A TRACK --';
+      function renderMilk(){
+        if(!vizActive){return;}
+        milkRenderer.render();
+        milkAnimFrame=requestAnimationFrame(renderMilk);
+      }
+      renderMilk();
+    }catch(err){
+      vizLoading = false;
+      milkVizWrap.classList.remove('active');
+      nowPlayingEl.textContent='VISUALIZER ERROR — SEE CONSOLE';
+      console.error('Butterchurn init failed:', err);
+    }
+  }, (msg)=>{
+    vizLoading = false;
+    nowPlayingEl.textContent=msg.toUpperCase();
+    console.error('Butterchurn load failed:', msg);
+  });
+}
+
+function stopViz(){
+  vizActive=false;
+  cancelAnimationFrame(milkAnimFrame);
+  milkVizWrap.classList.remove('active');
+  if(milkCanvas._presetTimer) clearInterval(milkCanvas._presetTimer);
+  vizToggleBtn.textContent='VISUALIZER';
+  milkFullscreenBtn.classList.add('hidden');
+  if(isFullscreenElement(milkVizWrap)) exitFullscreen();
+}
+
+vizToggleBtn.addEventListener('click',()=>{
+  if(vizActive){ stopViz(); }
+  else { startViz(); }
+});
+
+window.addEventListener('resize',()=>{
+  if(vizActive&&milkRenderer){
+    milkCanvas.width=milkCanvas.clientWidth;
+    milkCanvas.height=milkCanvas.clientHeight;
+    milkRenderer.setRendererSize(milkCanvas.width,milkCanvas.height);
+  }
+});
+
+/* ═══════════════════════════════════════
+   VIDEO PLAYER
+   ═══════════════════════════════════════ */
+const videoOverlay      = document.getElementById('videoOverlay');
+const videoClose        = document.getElementById('videoClose');
+const videoFullscreenBtn = document.getElementById('videoFullscreenBtn');
+const videoTabsEl       = document.getElementById('videoTabs');
+const videoStageEl      = document.getElementById('videoStage');
+const videoFsExitBtn    = document.getElementById('videoFsExitBtn');
+const videoStageEmptyEl = document.getElementById('videoStageEmpty');
+const videoLibraryPanel = document.getElementById('videoLibraryPanel');
+const videoLibraryList  = document.getElementById('videoLibraryList');
+const videoSearchEl     = document.getElementById('videoSearch');
+const vidPlayer         = document.getElementById('vidPlayer');
+const videoNowPlayingEl = document.getElementById('videoNowPlaying');
+const videoSummaryEl    = document.getElementById('videoSummary');
+const videoProgressBar  = document.getElementById('videoProgressBar');
+const videoProgressWrap = document.getElementById('videoProgressWrap');
+const videoTimeEl       = document.getElementById('videoTime');
+const videoPlayBtn      = document.getElementById('videoPlayBtn');
+const videoPrevBtn      = document.getElementById('videoPrevBtn');
+const videoNextBtn      = document.getElementById('videoNextBtn');
+const videoVolSlider    = document.getElementById('videoVolSlider');
+const ytPlayerContainer = document.getElementById('ytPlayerContainer');
+const ytPlayerWrap      = document.getElementById('ytPlayerWrap');
+
+/* ── Fullscreen helpers (cross-browser) ── */
+function isFullscreenElement(el){
+  const fs = document.fullscreenElement || document.webkitFullscreenElement ||
+             document.mozFullScreenElement || document.msFullscreenElement;
+  return !!fs && fs === el;
+}
+function requestFullscreen(el){
+  const fn = el.requestFullscreen || el.webkitRequestFullscreen ||
+             el.mozRequestFullScreen || el.msRequestFullscreen;
+  if(fn) return fn.call(el);
+  /* iOS Safari: no Element fullscreen API, but <video> has its own native fullscreen */
+  if(el.webkitEnterFullscreen) return el.webkitEnterFullscreen();
+}
+function exitFullscreen(){
+  const fn = document.exitFullscreen || document.webkitExitFullscreen ||
+             document.mozCancelFullScreen || document.msExitFullscreen;
+  if(fn) return fn.call(document);
+}
+function toggleFullscreen(el){
+  if(isFullscreenElement(el)){ exitFullscreen(); }
+  else { requestFullscreen(el); }
+}
+['fullscreenchange','webkitfullscreenchange','mozfullscreenchange','MSFullscreenChange'].forEach(evt=>{
+  document.addEventListener(evt, ()=>{
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement ||
+                 document.mozFullScreenElement || document.msFullscreenElement;
+    milkFullscreenBtn.textContent = (fsEl === milkVizWrap) ? 'EXIT FULLSCREEN' : 'FULLSCREEN';
+    videoFullscreenBtn.textContent = (fsEl === videoStageEl) ? 'EXIT FULLSCREEN' : 'FULLSCREEN';
+    milkVizWrap.classList.toggle('fs-active', fsEl === milkVizWrap);
+    videoStageEl.classList.toggle('fs-active', fsEl === videoStageEl);
+    if(fsEl === milkVizWrap && vizActive && milkRenderer){
+      milkCanvas.width = milkCanvas.clientWidth;
+      milkCanvas.height = milkCanvas.clientHeight;
+      milkRenderer.setRendererSize(milkCanvas.width, milkCanvas.height);
+    }
+  });
+});
+milkFullscreenBtn.addEventListener('click', ()=> toggleFullscreen(milkVizWrap));
+videoFullscreenBtn.addEventListener('click', ()=> toggleFullscreen(videoStageEl));
+/* Small "x" exit — a subtler alternative to hitting Esc, tucked in the top-right corner */
+milkFsExitBtn.addEventListener('click', e=>{ e.stopPropagation(); exitFullscreen(); });
+videoFsExitBtn.addEventListener('click', e=>{ e.stopPropagation(); exitFullscreen(); });
+
+let activeEngine = 'html5'; /* 'html5' | 'youtube' — which player is currently showing/controlling playback */
+let ytPlayer = null, ytPlayerReady = false, ytApiReady = false, ytApiLoading = false;
+let ytReadyCallbacks = [];
+let ytProgressTimer = null;
+
+/* Pull an 11-char YouTube video ID out of watch/share/short/embed links. Returns null for non-YouTube URLs. */
+function extractYouTubeId(url){
+  if(!url) return null;
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function loadYouTubeApi(cb){
+  if(ytApiReady){ cb(); return; }
+  ytReadyCallbacks.push(cb);
+  if(ytApiLoading) return;
+  ytApiLoading = true;
+  window.onYouTubeIframeAPIReady = function(){
+    ytApiReady = true;
+    ytReadyCallbacks.forEach(fn=>fn());
+    ytReadyCallbacks = [];
+  };
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+}
+
+function onYtStateChange(e){
+  if(e.data === YT.PlayerState.ENDED){ videoStepNext(); }
+  else if(e.data === YT.PlayerState.PLAYING){ videoPlayBtn.innerHTML='&#9646;&#9646;'; }
+  else if(e.data === YT.PlayerState.PAUSED){ videoPlayBtn.innerHTML='&#9654;'; }
+}
+
+/* YT error codes: 2 = bad video ID, 5 = HTML5 player error, 100 = video not found/private,
+   101 & 150 = embedding disabled by the video owner, 153 = invalid embed origin/config
+   (very often caused by opening this file as file:// instead of serving it over http/https). */
+function onYtError(e){
+  const messages = {
+    2:'INVALID VIDEO LINK', 5:'PLAYBACK ERROR', 100:'VIDEO NOT FOUND OR PRIVATE',
+    101:'EMBEDDING DISABLED FOR THIS VIDEO', 150:'EMBEDDING DISABLED FOR THIS VIDEO',
+    153:'EMBED BLOCKED — SERVE OVER HTTP(S), NOT FILE://',
+  };
+  videoNowPlayingEl.textContent = messages[e.data] || 'YOUTUBE PLAYBACK ERROR';
+  console.error('YouTube player error', e.data, 'for video:', videoNowPlayingEl.textContent);
+  setTimeout(videoStepNext, 2500);
+}
+
+/* Create the YT.Player once (it's reused for every YouTube video, just swap what's loaded into it). */
+function ensureYouTubePlayer(onReady){
+  if(ytPlayer && ytPlayerReady){ onReady(); return; }
+  loadYouTubeApi(()=>{
+    if(ytPlayer){ onReady(); return; }
+    ytPlayer = new YT.Player('ytPlayerContainer', {
+      height: '100%', width: '100%',
+      playerVars: { playsinline: 1, controls: 0, rel: 0, modestbranding: 1, origin: window.location.origin, enablejsapi: 1 },
+      events: {
+        onReady: ()=>{ ytPlayerReady = true; onReady(); },
+        onStateChange: onYtStateChange,
+        onError: onYtError,
+      }
+    });
+  });
+}
+
+function startYtProgressPoll(){
+  stopYtProgressPoll();
+  ytProgressTimer = setInterval(()=>{
+    if(activeEngine!=='youtube' || !ytPlayer || typeof ytPlayer.getDuration!=='function') return;
+    const dur = ytPlayer.getDuration(), cur = ytPlayer.getCurrentTime();
+    if(!dur) return;
+    videoProgressBar.style.width=(cur/dur*100)+'%';
+    videoTimeEl.textContent=fmtVideoTime(cur)+' / '+fmtVideoTime(dur);
+  }, 500);
+}
+function stopYtProgressPoll(){ if(ytProgressTimer){ clearInterval(ytProgressTimer); ytProgressTimer=null; } }
+
+/* Two "radio" style stations that play at random from their own list.
+   `order` is a shuffled sequence of indices into `list`; `pos` is where
+   we are in that sequence. Re-shuffles once it loops back around, so it
+   never repeats a video until every other one in the list has played. */
+const videoStations = {
+  tv:      { list: tvVideos,       order: [], pos: -1 },
+  musictv: { list: musicVideoList, order: [], pos: -1 },
+};
+
+/* The Library is built automatically from both station lists — no need
+   to maintain a third combined list by hand. Each entry remembers which
+   station it came from so a Library pick can still update that
+   station's shuffle position sensibly. */
+function buildVideoLibrary(){
+  return [
+    ...tvVideos.map((v,i)=>({ ...v, station:'tv', stationIndex:i, category:'LILUXSARU TV' })),
+    ...musicVideoList.map((v,i)=>({ ...v, station:'musictv', stationIndex:i, category:'MUSIC TV' })),
+  ];
+}
+let videoLibrary = buildVideoLibrary();
+let libraryVisible = videoLibrary.map((_,i)=>i); /* indices into videoLibrary after search */
+
+let currentTab = 'tv';           /* 'tv' | 'musictv' | 'library' */
+let currentPlayingKind = null;   /* 'tv' | 'musictv' | 'library' — where the loaded video came from */
+let currentLibraryPos = -1;      /* position within libraryVisible, when playing from the library */
+let videoPlayerInitialized = false;
+
+function shuffleOrder(list){
+  const idx = list.map((_,i)=>i);
+  for(let i=idx.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [idx[i],idx[j]]=[idx[j],idx[i]];
+  }
+  return idx;
+}
+
+function fmtVideoTime(s){ if(!isFinite(s)) return '0:00'; const m=Math.floor(s/60),sec=Math.floor(s%60); return m+':'+(sec<10?'0':'')+sec; }
+
+function loadVideo(videoObj, kind){
+  videoStageEmptyEl.classList.add('hidden');
+  videoNowPlayingEl.textContent = videoObj.title;
+  videoSummaryEl.textContent = videoObj.summary || '';
+  currentPlayingKind = kind;
+
+  const ytId = extractYouTubeId(videoObj.url);
+  if(ytId){
+    activeEngine = 'youtube';
+    vidPlayer.pause();
+    vidPlayer.removeAttribute('src');
+    vidPlayer.classList.add('hidden');
+    ytPlayerWrap.classList.remove('hidden');
+    ensureYouTubePlayer(()=>{
+      ytPlayer.loadVideoById(ytId);
+      ytPlayer.setVolume(Math.round(parseFloat(videoVolSlider.value)*100));
+      videoPlayBtn.innerHTML = '&#9646;&#9646;';
+      startYtProgressPoll();
+    });
+  } else {
+    activeEngine = 'html5';
+    stopYtProgressPoll();
+    if(ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
+    ytPlayerWrap.classList.add('hidden');
+    vidPlayer.classList.remove('hidden');
+    vidPlayer.src = videoObj.url;
+    vidPlayer.volume = parseFloat(videoVolSlider.value);
+    vidPlayer.play().catch(()=>{});
+    videoPlayBtn.innerHTML = '&#9646;&#9646;';
+  }
+}
+
+/* Advance a station (dir = 1 next / -1 prev / 0 just start where it is) and load the result. */
+function playStation(stationKey, dir){
+  const station = videoStations[stationKey];
+  if(!station.list.length) return;
+  if(!station.order.length) station.order = shuffleOrder(station.list);
+
+  if(dir === 1){
+    station.pos++;
+    if(station.pos >= station.order.length){ station.order = shuffleOrder(station.list); station.pos = 0; }
+  } else if(dir === -1){
+    station.pos--;
+    if(station.pos < 0){ station.pos = station.order.length - 1; }
+  } else if(station.pos === -1){
+    station.pos = 0;
+  }
+  const idx = station.order[station.pos];
+  loadVideo(station.list[idx], stationKey);
+}
+
+/* Recompute libraryVisible from the search box, then redraw the list. */
+function applyVideoSearch(){
+  const q = videoSearchEl.value.trim().toLowerCase();
+  libraryVisible = videoLibrary.reduce((acc,v,i)=>{
+    if(q){
+      const hay=[v.title,v.summary,v.category].filter(Boolean).join(' ').toLowerCase();
+      if(!hay.includes(q)) return acc;
+    }
+    acc.push(i);
+    return acc;
+  },[]);
+  buildVideoLibraryList();
+}
+videoSearchEl.addEventListener('input', applyVideoSearch);
+
+function buildVideoLibraryList(){
+  videoLibraryList.innerHTML='';
+  if(!libraryVisible.length){
+    videoLibraryList.innerHTML='<div class="music-no-results">NO VIDEOS MATCH</div>';
+    return;
+  }
+  libraryVisible.forEach(origIdx=>{
+    const v=videoLibrary[origIdx];
+    const row=document.createElement('div'); row.className='music-track'; row.dataset.idx=origIdx;
+    row.innerHTML=`<div class="music-track-info">
+        <div class="video-track-title">${v.title}</div>
+        <div class="video-track-meta">${v.category}</div>
+        <div class="video-track-summary">${v.summary||''}</div>
+      </div>`;
+    row.addEventListener('click',()=>playLibraryEntry(origIdx));
+    videoLibraryList.appendChild(row);
+  });
+}
+
+function playLibraryEntry(origIdx){
+  currentLibraryPos = libraryVisible.indexOf(origIdx);
+  const v = videoLibrary[origIdx];
+  loadVideo(v, 'library');
+  /* keep that video's home station in sync, so switching to its TV/Music TV
+     tab afterwards resumes from a sensible place instead of a stale spot */
+  videoStations[v.station].pos = videoStations[v.station].order.indexOf(v.stationIndex);
+  showStageView();
+}
+
+function getAdjacentLibraryIndex(dir){
+  if(!libraryVisible.length) return null;
+  let pos = currentLibraryPos;
+  if(pos === -1) pos = 0;
+  else pos = (pos + dir + libraryVisible.length) % libraryVisible.length;
+  return libraryVisible[pos];
+}
+
+/* ── Tab / view switching ── */
+function showStageView(){
+  videoStageEl.classList.remove('hidden');
+  videoLibraryPanel.classList.add('hidden');
+}
+function showLibraryView(){
+  videoStageEl.classList.add('hidden');
+  videoLibraryPanel.classList.remove('hidden');
+}
+
+function setActiveTab(tabKey, opts){
+  opts = opts || {};
+  currentTab = tabKey;
+  document.querySelectorAll('.video-tab-btn').forEach(b=>b.classList.toggle('active-btn', b.dataset.tab===tabKey));
+
+  if(tabKey === 'library'){
+    showLibraryView();
+    return;
+  }
+
+  showStageView();
+  /* Only auto-start a video if we're not already mid-playback for this exact station
+     (so tapping the same tab again doesn't restart your video). */
+  if(!opts.preserve && currentPlayingKind !== tabKey){
+    playStation(tabKey, 0);
+  }
+}
+
+videoTabsEl.addEventListener('click', e=>{
+  const btn = e.target.closest('.video-tab-btn');
+  if(!btn) return;
+  const tabKey = btn.dataset.tab;
+  /* Tapping the already-active LIBRARY tab always brings the list back,
+     even if a library pick is currently playing full-screen. */
+  if(tabKey === 'library'){ setActiveTab('library'); return; }
+  setActiveTab(tabKey);
+});
+
+function openVideoPlayer(){
+  videoOverlay.classList.add('active');
+  if(audioEl && !audioEl.paused) audioEl.pause(); /* don't overlap with the music player */
+  if(!videoPlayerInitialized){
+    videoPlayerInitialized = true;
+    videoLibrary = buildVideoLibrary();
+    libraryVisible = videoLibrary.map((_,i)=>i);
+    buildVideoLibraryList();
+    setActiveTab('tv');
+  }
+}
+
+videoClose.addEventListener('click', ()=>{
+  videoOverlay.classList.remove('active');
+  vidPlayer.pause();
+  vidPlayer.currentTime = 0;
+  if(ytPlayer && typeof ytPlayer.pauseVideo === 'function'){
+    ytPlayer.pauseVideo();
+    if(typeof ytPlayer.seekTo === 'function') ytPlayer.seekTo(0);
+  }
+  videoPlayBtn.innerHTML = '&#9654;';
+  if(isFullscreenElement(videoStageEl)) exitFullscreen();
+  input.focus();
+});
+
+/* ── Playback controls (shared across all three tabs) ── */
+function videoStepNext(){
+  if(currentPlayingKind === 'library'){
+    const idx = getAdjacentLibraryIndex(1);
+    if(idx!=null) playLibraryEntry(idx);
+  } else {
+    playStation(currentPlayingKind || currentTab, 1);
+  }
+}
+function videoStepPrev(){
+  if(currentPlayingKind === 'library'){
+    const idx = getAdjacentLibraryIndex(-1);
+    if(idx!=null) playLibraryEntry(idx);
+  } else {
+    playStation(currentPlayingKind || currentTab, -1);
+  }
+}
+
+videoPlayBtn.addEventListener('click', ()=>{
+  if(!currentPlayingKind){ setActiveTab(currentTab); return; }
+  if(activeEngine === 'youtube'){
+    if(!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') return;
+    if(ytPlayer.getPlayerState() === YT.PlayerState.PLAYING){ ytPlayer.pauseVideo(); videoPlayBtn.innerHTML='&#9654;'; }
+    else { ytPlayer.playVideo(); videoPlayBtn.innerHTML='&#9646;&#9646;'; }
+  } else {
+    if(vidPlayer.paused){ vidPlayer.play(); videoPlayBtn.innerHTML='&#9646;&#9646;'; }
+    else { vidPlayer.pause(); videoPlayBtn.innerHTML='&#9654;'; }
+  }
+});
+videoPrevBtn.addEventListener('click', videoStepPrev);
+videoNextBtn.addEventListener('click', videoStepNext);
+vidPlayer.addEventListener('ended', ()=>{ if(activeEngine==='html5') videoStepNext(); });
+
+vidPlayer.addEventListener('timeupdate', ()=>{
+  if(activeEngine!=='html5' || !vidPlayer.duration) return;
+  const pct=(vidPlayer.currentTime/vidPlayer.duration)*100;
+  videoProgressBar.style.width=pct+'%';
+  videoTimeEl.textContent=fmtVideoTime(vidPlayer.currentTime)+' / '+fmtVideoTime(vidPlayer.duration);
+});
+videoProgressWrap.addEventListener('click', e=>{
+  const rect=videoProgressWrap.getBoundingClientRect();
+  const pct=(e.clientX-rect.left)/rect.width;
+  if(activeEngine==='youtube'){
+    if(!ytPlayer || typeof ytPlayer.getDuration!=='function') return;
+    const dur=ytPlayer.getDuration();
+    if(dur) ytPlayer.seekTo(pct*dur, true);
+  } else {
+    if(!vidPlayer.duration) return;
+    vidPlayer.currentTime=pct*vidPlayer.duration;
+  }
+});
+videoVolSlider.addEventListener('input', ()=>{
+  const v=parseFloat(videoVolSlider.value);
+  vidPlayer.volume=v;
+  if(ytPlayer && typeof ytPlayer.setVolume==='function') ytPlayer.setVolume(Math.round(v*100));
+});
+
+
+let emuStarted=false;
+document.getElementById('emuClose').addEventListener('click',()=>{
+  document.getElementById('emuOverlay').classList.remove('active'); input.focus();
+});
+function startEmulator(){
+  document.getElementById('emuOverlay').classList.add('active');
+  if(emuStarted) return; emuStarted=true;
+  window.EJS_player='#emuContainer'; window.EJS_core=gameCommand.core;
+  window.EJS_gameUrl=gameCommand.romUrl;
+  window.EJS_pathtodata='https://cdn.jsdelivr.net/npm/emulatorjs@latest/data/';
+  window.EJS_startOnLoaded=true; window.EJS_backgroundColor='#000000';
+  window.EJS_onGameStart=function(){ const l=document.getElementById('emuLoading'); if(l) l.remove(); };
+  const s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/emulatorjs@latest/data/loader.js';
+  document.body.appendChild(s);
+}
+/* ═══════════════════════════════════════
+   GLITTER PARTICLE SYSTEM
+   ═══════════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('glitterCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  /* Pull the current primary color from CSS variables for theme-aware sparkles */
+  function getPrimaryRGB(){
+    const v = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+    const m = v.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+    if(m) return [parseInt(m[1],16), parseInt(m[2],16), parseInt(m[3],16)];
+    return [255,255,255];
+  }
+
+  function resize(){
+    W = canvas.width  = canvas.offsetWidth;
+    H = canvas.height = canvas.offsetHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  /* Particle types: tiny dot, 4-point star, small cross */
+  function randomShape(){ return ['dot','star','cross'][Math.floor(Math.random()*3)]; }
+
+  function spawn(){
+    const [r,g,b] = getPrimaryRGB();
+    /* Mix between pure white, theme primary, and a near-white tint for variety */
+    const toss = Math.random();
+    let cr,cg,cb;
+    if(toss < 0.4){       cr=255;cg=255;cb=255; }           /* white sparkle */
+    else if(toss < 0.75){ cr=r;cg=g;cb=b; }                /* theme color   */
+    else {                cr=Math.round((r+255)/2);cg=Math.round((g+255)/2);cb=Math.round((b+255)/2); } /* pastel mix */
+
+    return {
+      x:  Math.random() * W,
+      y:  Math.random() * H,
+      size: 0.5 + Math.random() * 1.8,
+      alpha: 0,
+      alphaDir: 1,
+      alphaSpeed: 0.008 + Math.random() * 0.018,
+      maxAlpha: 0.25 + Math.random() * 0.35,
+      vx: (Math.random() - 0.5) * 0.12,
+      vy: (Math.random() - 0.5) * 0.12,
+      shape: randomShape(),
+      r:cr, g:cg, b:cb,
+      rotation: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.02,
+    };
+  }
+
+  /* Seed initial particles spread across the whole screen */
+  const PARTICLE_COUNT = 55;
+  for(let i=0;i<PARTICLE_COUNT;i++){
+    const p = spawn();
+    p.alpha = Math.random() * p.maxAlpha; /* start at random phase */
+    particles.push(p);
+  }
+
+  function drawStar(ctx, x, y, size){
+    ctx.beginPath();
+    for(let i=0;i<4;i++){
+      const a = (Math.PI/2)*i;
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + Math.cos(a)*size*2, y + Math.sin(a)*size*2);
+    }
+    ctx.stroke();
+  }
+
+  function drawCross(ctx, x, y, size){
+    ctx.beginPath();
+    ctx.moveTo(x - size*1.5, y); ctx.lineTo(x + size*1.5, y);
+    ctx.moveTo(x, y - size*1.5); ctx.lineTo(x, y + size*1.5);
+    ctx.stroke();
+  }
+
+  function tick(){
+    ctx.clearRect(0,0,W,H);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      p.rotation += p.rotSpeed;
+      p.alpha += p.alphaDir * p.alphaSpeed;
+
+      if(p.alpha >= p.maxAlpha){ p.alpha = p.maxAlpha; p.alphaDir = -1; }
+      if(p.alpha <= 0){
+        /* respawn at new position when fully faded */
+        Object.assign(p, spawn());
+        p.alpha = 0; p.alphaDir = 1;
+      }
+
+      /* wrap edges */
+      if(p.x < -4) p.x = W+4;
+      if(p.x > W+4) p.x = -4;
+      if(p.y < -4) p.y = H+4;
+      if(p.y > H+4) p.y = -4;
+
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.strokeStyle = `rgb(${p.r},${p.g},${p.b})`;
+      ctx.fillStyle   = `rgb(${p.r},${p.g},${p.b})`;
+      ctx.lineWidth   = p.size * 0.6;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotation);
+
+      if(p.shape === 'dot'){
+        ctx.beginPath();
+        ctx.arc(0,0,p.size,0,Math.PI*2);
+        ctx.fill();
+      } else if(p.shape === 'star'){
+        drawStar(ctx,0,0,p.size);
+      } else {
+        drawCross(ctx,0,0,p.size);
+      }
+      ctx.restore();
+    });
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+</script>
+</body>
+</html>
