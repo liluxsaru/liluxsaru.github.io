@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
 <title>Liluxsaru</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -56,6 +56,12 @@ html, body { height: 100%; overflow: hidden; background: #000; }
 /* Sparkle particle canvas — sits above everything except overlays */
 #glitterCanvas {
   position:absolute; inset:0; pointer-events:none; z-index:13;
+  width:100%; height:100%;
+}
+
+/* Sparkle canvas variant used inside minigame windows/overlays */
+.sc-glitter {
+  position:absolute; inset:0; pointer-events:none; z-index:2;
   width:100%; height:100%;
 }
 
@@ -120,7 +126,7 @@ html, body { height: 100%; overflow: hidden; background: #000; }
 .fake-input-wrap { position:relative; flex:1; height:18px; }
 .typed-text { position:absolute; top:0; left:0; white-space:pre; pointer-events:none; line-height:18px; font-family:'Share Tech Mono','Courier New',monospace; font-size:clamp(11px,1.8vw,13px); color:var(--primary); text-shadow:0 0 4px var(--glow); }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-#real-input { position:absolute; top:0; left:0; width:100%; height:100%; background:transparent; border:none; outline:none; padding:0; font-family:'Share Tech Mono','Courier New',monospace; font-size:16px; color:transparent; caret-color:transparent; }
+#real-input { position:absolute; top:0; left:0; width:100%; height:100%; background:transparent; border:none; outline:none; padding:0; font-family:'Share Tech Mono','Courier New',monospace; font-size:clamp(11px,1.8vw,13px); line-height:18px; color:transparent; caret-color:transparent; }
 
 .fo-footer { display:flex; justify-content:space-between; font-size:9px; letter-spacing:2px; margin-top:8px; text-transform:uppercase; position:relative; z-index:5; color:var(--bright); text-shadow:-1px -1px 0 var(--outline),1px -1px 0 var(--outline),-1px 1px 0 var(--outline),1px 1px 0 var(--outline); }
 
@@ -193,6 +199,8 @@ html, body { height: 100%; overflow: hidden; background: #000; }
 .reflex-result.lose { color:var(--err); }
 #reflexTimer { color:var(--primary); }
 #reflexTimer.low { color:var(--err); text-shadow:0 0 8px var(--err); }
+#hackTimer { color:var(--primary); }
+#hackTimer.low { color:var(--err); text-shadow:0 0 8px var(--err); }
 
 /* ── MINIGAME MENU ── */
 .minigame-overlay { z-index:26; }
@@ -212,6 +220,45 @@ html, body { height: 100%; overflow: hidden; background: #000; }
 .minigame-entry-title { color:var(--bright); letter-spacing:1px; font-weight:bold; text-shadow:0 0 6px var(--glow); font-size:clamp(12px,1.9vw,14px); }
 .minigame-entry-desc { font-size:10.5px; color:var(--dim); margin-top:3px; letter-spacing:0.5px; line-height:1.4; }
 .minigame-entry-arrow { color:var(--primary); flex-shrink:0; font-size:16px; }
+.minigame-category-header {
+  display:flex; align-items:center; gap:8px; padding:14px 8px 6px;
+  color:var(--bright); letter-spacing:2px; font-size:11px; font-weight:bold;
+  text-shadow:0 0 6px var(--glow); border-bottom:1px solid var(--border);
+  margin-bottom:2px;
+}
+.minigame-category-header:first-child { padding-top:4px; }
+.mch-icon { font-size:13px; }
+.mch-count { margin-left:auto; color:var(--dim); font-weight:normal; letter-spacing:1px; font-size:10px; }
+.minigame-empty-cat {
+  padding:10px 8px 16px; color:var(--dim); font-size:10px; letter-spacing:1px;
+  font-style:italic; opacity:0.7;
+}
+.minigame-entry.locked { cursor:default; opacity:0.5; }
+.minigame-entry.locked:active { background:transparent; }
+.minigame-entry.locked .minigame-entry-icon { color:var(--dim); border-style:dashed; }
+.minigame-entry.locked .minigame-entry-title { color:var(--dim); text-shadow:none; }
+
+/* ── SIGNAL VENDOR (GACHA) ── */
+.vendor-overlay { z-index:30; }
+.vendor-body {
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:16px; padding:24px; text-align:center;
+}
+.vendor-capsule {
+  width:96px; height:96px; border-radius:50%; border:2px solid var(--border);
+  display:flex; align-items:center; justify-content:center; position:relative;
+  background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.06), transparent 60%);
+  box-shadow:0 0 24px var(--glow), inset 0 0 20px rgba(0,0,0,0.5);
+}
+.vendor-capsule-icon { font-size:34px; color:var(--bright); text-shadow:0 0 10px var(--glow); transition:transform 0.2s ease; }
+.vendor-capsule.rolling { animation:vendor-spin 0.9s linear; }
+.vendor-capsule.rolling .vendor-capsule-icon { animation:vendor-pulse 0.3s ease-in-out infinite; }
+@keyframes vendor-spin { 0%{ transform:rotate(0deg); } 100%{ transform:rotate(360deg); } }
+@keyframes vendor-pulse { 0%,100%{ opacity:0.4; } 50%{ opacity:1; } }
+.vendor-status { max-width:340px; font-size:12px; letter-spacing:1px; line-height:1.6; color:var(--primary); min-height:40px; }
+.vendor-pool { font-size:10px; letter-spacing:1px; color:var(--dim); max-width:340px; }
+#vendorRollBtn { width:220px; }
+#vendorRollBtn:disabled { opacity:0.4; box-shadow:none; cursor:default; }
 
 /* ── PONG BREAKOUT ── */
 .breakout-overlay { z-index:27; }
@@ -232,6 +279,15 @@ html, body { height: 100%; overflow: hidden; background: #000; }
 .breakout-hint {
   font-size:10px; color:var(--bright); text-align:center; letter-spacing:1px;
   padding:8px; flex-shrink:0; border-top:1px solid var(--border);
+  /* Fixed height (not just padding) so a message that wraps to two
+     lines — e.g. TD's hint bar swapping between short toasts like
+     "SOLD FOR 30 CREDITS" and the longer default instructions —
+     can't change this element's height. That resize was rippling
+     into the flex:1 stage above it, which a ResizeObserver watches
+     to size the canvas, producing a visible "window resizing" jitter
+     every time the hint text changed. */
+  min-height:46px; max-height:46px; overflow:hidden;
+  display:flex; align-items:center; justify-content:center; line-height:1.35;
 }
 
 /* ── SOKOBAN MINIGAME ── */
@@ -270,6 +326,186 @@ html, body { height: 100%; overflow: hidden; background: #000; }
   border-radius:6px; -webkit-tap-highlight-color:transparent; cursor:pointer;
 }
 .sokoban-dbtn:active { background:var(--primary); color:var(--ink); }
+
+/* ── GRID DEFENSE (TOWER DEFENSE) MINIGAME ── */
+.td-overlay { z-index:29; }
+.td-stage {
+  flex:1; min-height:0; position:relative; background:#000;
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+#tdCanvas { width:100%; height:100%; display:block; touch-action:none; }
+.td-panel {
+  flex-shrink:0; border-top:1px solid var(--border); padding:8px 10px 10px;
+  display:flex; flex-direction:column; gap:8px;
+}
+.td-tower-list { display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
+.td-tower-list::-webkit-scrollbar { display:none; }
+.td-tower-btn {
+  flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:3px;
+  width:78px; padding:6px 4px; border:1px solid var(--border); border-radius:6px;
+  background:transparent; color:var(--primary); font-family:inherit; cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.td-tower-btn.selected { background:var(--primary); color:var(--ink); box-shadow:0 0 12px var(--glow); }
+.td-tower-btn.unaffordable { opacity:0.35; }
+.td-tower-icon { width:20px; height:20px; border-radius:4px; }
+.td-tower-name { font-size:9px; letter-spacing:1px; font-weight:bold; }
+.td-tower-cost { font-size:9px; }
+.td-deploy-btn {
+  font-family:inherit; font-size:13px; letter-spacing:2px; padding:10px; border:none; border-radius:6px;
+  background:var(--primary); color:var(--ink); font-weight:bold; cursor:pointer;
+  -webkit-tap-highlight-color:transparent; box-shadow:0 0 14px var(--glow);
+}
+.td-deploy-btn:disabled { opacity:0.35; box-shadow:none; cursor:default; }
+.td-hint-flash { color:var(--bright) !important; }
+
+/* ── SOUL BOX ── */
+.soulbox-overlay { z-index:31; }
+.soulbox-stage {
+  flex:1; min-height:0; position:relative; background:#000;
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+#soulboxCanvas { width:100%; height:100%; display:block; touch-action:none; }
+#soulboxHp.low { color:var(--err); text-shadow:0 0 8px var(--err); }
+#soulboxTimer.low { color:var(--err); text-shadow:0 0 8px var(--err); }
+
+/* ── DICE DUEL (GAMBLING) ── */
+.dice-overlay { z-index:32; }
+.dice-stage {
+  flex:1; min-height:0; position:relative; overflow-y:auto; overflow-x:hidden;
+  display:flex; flex-direction:column; padding:16px 20px; gap:14px;
+  -webkit-overflow-scrolling:touch; scrollbar-width:none;
+}
+.dice-stage::-webkit-scrollbar { display:none; }
+.dice-vs-row { display:flex; align-items:center; justify-content:center; gap:24px; flex-shrink:0; }
+.dice-side { display:flex; flex-direction:column; align-items:center; gap:8px; width:130px; }
+.dice-side-label { font-size:10px; letter-spacing:2px; color:var(--dim); text-align:center; }
+.dice-pips { display:flex; gap:6px; }
+.dice-pip { width:9px; height:9px; border-radius:50%; border:1px solid var(--border); background:transparent; }
+.dice-pip.won { background:var(--bright); box-shadow:0 0 8px var(--glow); border-color:var(--bright); }
+.dice-cube {
+  width:56px; height:56px; border:1px solid var(--border); border-radius:8px;
+  display:flex; align-items:center; justify-content:center; font-size:22px;
+  color:var(--bright); text-shadow:0 0 8px var(--glow); background:rgba(255,255,255,0.02);
+}
+.dice-cube.rolling { animation:dice-rolling 0.08s linear infinite; }
+@keyframes dice-rolling { 0%{transform:rotate(0deg);} 50%{transform:rotate(-6deg) scale(1.05);} 100%{transform:rotate(4deg);} }
+.dice-vs-label { font-size:11px; letter-spacing:2px; color:var(--dim); flex-shrink:0; }
+.dice-log {
+  flex:1; min-height:60px; max-height:180px; overflow-y:auto; font-size:11px; line-height:1.7;
+  color:var(--primary); border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+  padding:8px 4px; scrollbar-width:none;
+}
+.dice-log::-webkit-scrollbar { display:none; }
+.dice-log .ok   { color:var(--bright); }
+.dice-log .err  { color:var(--err); }
+.dice-log .warn { color:var(--bright); opacity:0.85; }
+.dice-choices { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; flex-shrink:0; }
+.dice-choice-btn {
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding:14px 8px; border:1px solid var(--border); border-radius:8px;
+  background:transparent; color:var(--primary); font-family:inherit; font-size:11px;
+  letter-spacing:1px; cursor:pointer; -webkit-tap-highlight-color:transparent;
+}
+.dice-choice-icon { font-size:20px; text-shadow:0 0 8px var(--glow); }
+.dice-choice-btn span { font-weight:bold; }
+.dice-choice-btn:active { background:var(--primary); color:var(--ink); box-shadow:0 0 12px var(--glow); }
+
+/* ── SIGNAL SYNC (RHYTHM) ── */
+.rhythm-overlay { z-index:33; }
+.rhythm-stage {
+  flex:1; min-height:0; position:relative; background:#000;
+  overflow:hidden; touch-action:none;
+}
+.rhythm-lane { position:absolute; top:0; bottom:0; width:25%; border-left:1px solid rgba(42,106,138,0.35); }
+.rhythm-lane:first-child { border-left:none; }
+.rhythm-lane[data-lane="up"]    { left:0; }
+.rhythm-lane[data-lane="left"]  { left:25%; }
+.rhythm-lane[data-lane="down"]  { left:50%; }
+.rhythm-lane[data-lane="right"] { left:75%; }
+.rhythm-hitline {
+  position:absolute; left:0; right:0; bottom:96px; height:2px;
+  background:var(--border); box-shadow:0 0 10px var(--glow);
+}
+.rhythm-receptor {
+  position:absolute; left:0; bottom:66px; width:100%; height:56px;
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--border); background:rgba(125,217,255,0.03);
+  transition:background .08s, box-shadow .08s;
+}
+.rhythm-receptor svg { width:24px; height:24px; stroke:var(--dim); fill:none; stroke-width:2; transition:stroke .08s; }
+.rhythm-receptor.active { background:rgba(125,217,255,0.16); border-color:var(--bright); box-shadow:0 0 16px var(--glow); }
+.rhythm-receptor.active svg { stroke:var(--bright); filter:drop-shadow(0 0 6px var(--glow)); }
+.rhythm-note {
+  position:absolute; left:6px; right:6px; top:0; height:32px; border-radius:3px;
+  border:1px solid var(--bright); background:rgba(125,217,255,0.14);
+  display:none; align-items:center; justify-content:center;
+  box-shadow:0 0 10px var(--glow); will-change:transform;
+}
+.rhythm-note svg { width:16px; height:16px; stroke:var(--bright); fill:none; stroke-width:2.4; }
+.rhythm-note.hit { animation:rhythm-note-hit .15s forwards; }
+@keyframes rhythm-note-hit { to{ opacity:0; transform:scale(1.4); } }
+.rhythm-judge {
+  position:absolute; left:50%; top:0; transform:translate(-50%,0);
+  font-size:11px; letter-spacing:2px; font-weight:bold; pointer-events:none;
+  opacity:0; text-shadow:0 0 8px currentColor;
+}
+.rhythm-judge.show { animation:rhythm-judge-pop .5s ease-out forwards; }
+@keyframes rhythm-judge-pop {
+  0%{ opacity:0; transform:translate(-50%,8px) scale(0.9); }
+  15%{ opacity:1; transform:translate(-50%,0) scale(1.05); }
+  70%{ opacity:1; }
+  100%{ opacity:0; transform:translate(-50%,-14px) scale(1); }
+}
+.rhythm-judge.perfect { color:var(--bright); }
+.rhythm-judge.good    { color:var(--primary); }
+.rhythm-judge.miss    { color:var(--err); }
+.rhythm-touchzones { position:absolute; inset:0; display:flex; z-index:5; touch-action:none; }
+.rhythm-tz { flex:1; -webkit-user-select:none; user-select:none; }
+.rhythm-overlay #rhythmMsg { z-index:20; }
+.rhythm-slide-layer { position:absolute; inset:0; pointer-events:none; z-index:3; }
+.rhythm-slide-bar {
+  position:absolute; height:4px; border-radius:2px; top:0; left:0;
+  background:var(--primary); opacity:0.5; box-shadow:0 0 8px var(--glow);
+  transform-origin:0% 50%; display:none; will-change:transform,width;
+}
+.rhythm-slide-node {
+  position:absolute; top:0; left:0; width:26px; height:26px; margin:-13px 0 0 -13px;
+  border-radius:50%; border:1px solid var(--dim); background:rgba(125,217,255,0.05);
+  display:none; align-items:center; justify-content:center; box-sizing:border-box;
+  transition:border-color .08s, background .08s, box-shadow .08s; will-change:transform;
+}
+.rhythm-slide-node svg { width:15px; height:15px; stroke:var(--dim); fill:none; stroke-width:2.2; transition:stroke .08s; }
+.rhythm-slide-node.end { border-style:dashed; }
+.rhythm-slide-node.engaged { border-color:var(--bright); background:rgba(125,217,255,0.2); box-shadow:0 0 12px var(--glow); }
+.rhythm-slide-node.engaged svg { stroke:var(--bright); }
+.rhythm-slide-bar.engaged { opacity:0.95; box-shadow:0 0 14px var(--glow); }
+.rhythm-slide-node.miss-flag { border-color:var(--err); }
+.rhythm-slide-node.miss-flag svg { stroke:var(--err); }
+.rhythm-slide-hit { animation:rhythm-note-hit .15s forwards; }
+#rhythmComboStat.pulse { text-shadow:0 0 10px var(--glow); }
+#rhythmMsg .rhythm-countdown { font-size:clamp(28px,7vw,44px); text-shadow:0 0 16px var(--glow); }
+#rhythmMsg .rhythm-grade { font-size:clamp(30px,7vw,44px); text-shadow:0 0 16px var(--glow); margin:2px 0; }
+
+/* ── SILICON PINBALL ── */
+.pinball-overlay { z-index:34; }
+.pinball-stage {
+  flex:1; min-height:0; position:relative; background:#000;
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+#pinballCanvas { width:100%; height:100%; display:block; touch-action:none; }
+
+/* ── GOLD ROAD (DOKAPON BOARD) ── */
+.dokapon-overlay { z-index:35; padding:0; }
+.dokapon-overlay .sc-overlay-top { padding:14px 20px 10px; flex-shrink:0; }
+.dokapon-stage { flex:1; min-height:0; position:relative; background:#000; }
+#dokaponFrame { position:absolute; inset:0; width:100%; height:100%; border:none; display:block; background:#170f28; }
+.dokapon-loading {
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  color:var(--primary); font-size:clamp(11px,1.8vw,13px); letter-spacing:2px;
+  text-shadow:0 0 4px var(--glow); pointer-events:none;
+}
+.dokapon-loading.hidden { display:none; }
 
 /* ── MUSIC PLAYER ── */
 .music-overlay { z-index:23; }
@@ -474,15 +710,17 @@ html, body { height: 100%; overflow: hidden; background: #000; }
         </div>
       </div>
       <div class="fo-footer">
-        <span>Liluxsaru.do.am</span>
+        <span>Liluxsaru.github.io</span>
         <span id="fo-time">--:--:--</span>
       </div>
     </div>
 
     <!-- HACKING MINIGAME -->
     <div class="sc-overlay hack-overlay" id="hackOverlay">
+      <canvas class="sc-glitter"></canvas>
       <div class="hack-top">
         <span>SECURITY OVERRIDE // LILUXSARU</span>
+        <span id="hackTimer">30s</span>
         <div class="hack-attempts" id="hackAttempts"></div>
       </div>
       <div class="hack-body">
@@ -496,6 +734,7 @@ html, body { height: 100%; overflow: hidden; background: #000; }
 
     <!-- REFLEX MINIGAME -->
     <div class="sc-overlay reflex-overlay" id="reflexOverlay">
+      <canvas class="sc-glitter"></canvas>
       <div class="reflex-top">
         <span id="reflexLabel">SYNC TEST</span>
         <span id="reflexTimer">10s</span>
@@ -512,15 +751,41 @@ html, body { height: 100%; overflow: hidden; background: #000; }
 
     <!-- MINIGAME MENU -->
     <div class="sc-overlay minigame-overlay" id="minigameMenuOverlay">
+      <canvas class="sc-glitter"></canvas>
       <div class="sc-overlay-top">
         <span>LILUXSARU // MINIGAME ARCHIVE</span>
-        <button class="sc-close-btn" id="minigameMenuClose">CLOSE</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="breakout-stat" id="menuPointsDisplay">POINTS: 0</span>
+          <button class="sc-close-btn" id="openVendorBtn">VENDOR</button>
+          <button class="sc-close-btn" id="minigameMenuClose">CLOSE</button>
+        </div>
       </div>
       <div class="minigame-list" id="minigameList"></div>
     </div>
 
+    <!-- SIGNAL VENDOR (GACHA) -->
+    <div class="sc-overlay vendor-overlay" id="vendorOverlay">
+      <canvas class="sc-glitter"></canvas>
+      <div class="sc-overlay-top">
+        <span>LILUXSARU // SIGNAL VENDOR</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="breakout-stat" id="vendorPoints">POINTS: 0</span>
+          <button class="sc-close-btn" id="vendorClose">CLOSE</button>
+        </div>
+      </div>
+      <div class="vendor-body">
+        <div class="vendor-capsule" id="vendorCapsule">
+          <div class="vendor-capsule-icon" id="vendorCapsuleIcon">?</div>
+        </div>
+        <div class="vendor-status" id="vendorStatus">INSERT SIGNAL POINTS TO SCAN FOR AN UNKNOWN TRANSMISSION.</div>
+        <div class="vendor-pool" id="vendorPool"></div>
+        <button class="td-deploy-btn" id="vendorRollBtn">SCAN &mdash; <span id="vendorCostLabel">5</span> PTS</button>
+      </div>
+    </div>
+
     <!-- PONG BREAKOUT MINIGAME -->
     <div class="sc-overlay breakout-overlay" id="breakoutOverlay">
+      <canvas class="sc-glitter"></canvas>
       <div class="sc-overlay-top">
         <span id="breakoutTitle">PONG BREAKOUT</span>
         <div style="display:flex;gap:8px;align-items:center;">
@@ -538,6 +803,7 @@ html, body { height: 100%; overflow: hidden; background: #000; }
 
     <!-- SOKOBAN MINIGAME -->
     <div class="sc-overlay sokoban-overlay" id="sokobanOverlay">
+      <canvas class="sc-glitter"></canvas>
       <div class="sc-overlay-top">
         <span id="sokobanTitle">BOX RUN</span>
         <div style="display:flex;gap:8px;align-items:center;">
@@ -560,6 +826,148 @@ html, body { height: 100%; overflow: hidden; background: #000; }
         <button class="sokoban-dbtn" data-dir="down">&#9660;</button>
       </div>
       <div class="breakout-hint">ARROW KEYS / WASD TO MOVE &mdash; SWIPE OR D-PAD ON MOBILE &mdash; &#8630; UNDOES A MOVE</div>
+    </div>
+
+    <!-- GRID DEFENSE MINIGAME -->
+    <div class="sc-overlay td-overlay" id="tdOverlay">
+      <canvas class="sc-glitter"></canvas>
+      <div class="sc-overlay-top">
+        <span id="tdTitle">SECTOR 7 GRID</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+          <span class="breakout-stat" id="tdLives">CORES: 20</span>
+          <span class="breakout-stat" id="tdGold">CREDITS: 150</span>
+          <span class="breakout-stat" id="tdWave">WAVE 0/8</span>
+          <span class="breakout-stat" id="tdTier">TIER 1</span>
+          <button class="sc-close-btn" id="tdClose">CLOSE</button>
+        </div>
+      </div>
+      <div class="td-stage" id="tdStage">
+        <canvas id="tdCanvas"></canvas>
+        <div class="breakout-overlay-msg" id="tdMsg"></div>
+      </div>
+      <div class="td-panel">
+        <div class="td-tower-list" id="tdTowerList"></div>
+        <button class="td-deploy-btn" id="tdDeployBtn">DEPLOY WAVE</button>
+      </div>
+      <div class="breakout-hint" id="tdHint">PICK A TOWER, TAP THE GRID TO BUILD &mdash; TAP A BUILT TOWER TO SELL IT</div>
+    </div>
+
+    <!-- SOUL BOX MINIGAME -->
+    <div class="sc-overlay soulbox-overlay" id="soulboxOverlay">
+      <canvas class="sc-glitter"></canvas>
+      <div class="sc-overlay-top">
+        <span id="soulboxTitle">SOUL BOX</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="breakout-stat" id="soulboxHp">HP: 20/20</span>
+          <span class="breakout-stat" id="soulboxTimer">10.0s</span>
+          <button class="sc-close-btn" id="soulboxClose">CLOSE</button>
+        </div>
+      </div>
+      <div class="soulbox-stage" id="soulboxStage">
+        <canvas id="soulboxCanvas"></canvas>
+        <div class="breakout-overlay-msg" id="soulboxMsg"></div>
+      </div>
+      <div class="breakout-hint" id="soulboxHint">ARROW KEYS / WASD TO MOVE &mdash; DRAG THE SOUL ON MOBILE &mdash; SURVIVE 10 SECONDS</div>
+    </div>
+
+    <!-- DICE DUEL MINIGAME -->
+    <div class="sc-overlay dice-overlay" id="diceOverlay">
+      <canvas class="sc-glitter"></canvas>
+      <div class="sc-overlay-top">
+        <span id="diceTitle">DICE DUEL</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="breakout-stat" id="diceAnteStat">ANTE: 3</span>
+          <span class="breakout-stat" id="diceRoundStat">ROUND 1/3</span>
+          <button class="sc-close-btn" id="diceClose">CLOSE</button>
+        </div>
+      </div>
+      <div class="dice-stage" id="diceStage">
+        <div class="dice-vs-row">
+          <div class="dice-side">
+            <div class="dice-side-label">YOU</div>
+            <div class="dice-pips" id="dicePlayerPips"><span class="dice-pip"></span><span class="dice-pip"></span></div>
+            <div class="dice-cube" id="dicePlayerCube">?</div>
+          </div>
+          <div class="dice-vs-label">VS</div>
+          <div class="dice-side">
+            <div class="dice-side-label" id="diceEnemyName">ROGUE PROCESS</div>
+            <div class="dice-pips" id="diceEnemyPips"><span class="dice-pip"></span><span class="dice-pip"></span></div>
+            <div class="dice-cube" id="diceEnemyCube">?</div>
+          </div>
+        </div>
+        <div class="dice-log" id="diceLog"></div>
+        <div class="dice-choices" id="diceChoices">
+          <button class="dice-choice-btn" data-move="attack"><div class="dice-choice-icon">&#9876;</div><span>ATTACK</span></button>
+          <button class="dice-choice-btn" data-move="defend"><div class="dice-choice-icon">&#128737;</div><span>DEFEND</span></button>
+          <button class="dice-choice-btn" data-move="counter"><div class="dice-choice-icon">&#8635;</div><span>COUNTER</span></button>
+          <button class="dice-choice-btn" data-move="magic"><div class="dice-choice-icon">&#10024;</div><span>MAGIC</span></button>
+        </div>
+        <div class="breakout-overlay-msg" id="diceMsg"></div>
+      </div>
+      <div class="breakout-hint" id="diceHint">ATTACK BEATS COUNTER &middot; COUNTER BEATS DEFEND &middot; DEFEND BEATS MAGIC &middot; MAGIC BEATS ATTACK</div>
+    </div>
+
+    <!-- SIGNAL SYNC MINIGAME (RHYTHM) -->
+    <div class="sc-overlay rhythm-overlay" id="rhythmOverlay">
+      <canvas class="sc-glitter"></canvas>
+      <div class="sc-overlay-top">
+        <span id="rhythmTitle">SIGNAL SYNC</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="breakout-stat" id="rhythmScoreStat">SCORE: 0</span>
+          <span class="breakout-stat" id="rhythmComboStat">0 COMBO</span>
+          <span class="breakout-stat" id="rhythmAccStat">ACC: 100%</span>
+          <button class="sc-close-btn" id="rhythmClose">CLOSE</button>
+        </div>
+      </div>
+      <div class="rhythm-stage" id="rhythmStage">
+        <div class="rhythm-lane" data-lane="up"></div>
+        <div class="rhythm-lane" data-lane="left"></div>
+        <div class="rhythm-lane" data-lane="down"></div>
+        <div class="rhythm-lane" data-lane="right"></div>
+        <div class="rhythm-hitline"></div>
+        <div class="rhythm-slide-layer" id="rhythmSlideLayer"></div>
+        <div class="rhythm-touchzones" id="rhythmTouchZones">
+          <div class="rhythm-tz" data-lane="up"></div>
+          <div class="rhythm-tz" data-lane="left"></div>
+          <div class="rhythm-tz" data-lane="down"></div>
+          <div class="rhythm-tz" data-lane="right"></div>
+        </div>
+        <div class="breakout-overlay-msg" id="rhythmMsg"></div>
+      </div>
+      <div class="breakout-hint" id="rhythmHint">ARROW KEYS ON DESKTOP &mdash; TAP THE FOUR LANES ON MOBILE</div>
+    </div>
+
+    <!-- SILICON PINBALL MINIGAME -->
+    <div class="sc-overlay pinball-overlay" id="pinballOverlay">
+      <canvas class="sc-glitter"></canvas>
+      <div class="sc-overlay-top">
+        <span id="pinballTitle">SILICON PINBALL</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="breakout-stat" id="pinballScore">SCORE: 0</span>
+          <span class="breakout-stat" id="pinballTarget">TARGET: 300</span>
+          <span class="breakout-stat" id="pinballBalls">BALLS: 3</span>
+          <button class="sc-close-btn" id="pinballClose">CLOSE</button>
+        </div>
+      </div>
+      <div class="pinball-stage" id="pinballStage">
+        <canvas id="pinballCanvas"></canvas>
+        <div class="breakout-overlay-msg" id="pinballMsg"></div>
+      </div>
+      <div class="breakout-hint" id="pinballHint">LEFT/RIGHT ARROWS OR A/D TO FLIP &mdash; TAP LEFT/RIGHT HALF OF THE TABLE ON MOBILE</div>
+    </div>
+
+    <!-- GOLD ROAD (DOKAPON BOARD) MINIGAME -->
+    <div class="sc-overlay dokapon-overlay" id="dokaponOverlay">
+      <div class="sc-overlay-top">
+        <span>GOLD ROAD // BOARD RIVALS</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="sc-close-btn" id="dokaponClose">CLOSE</button>
+        </div>
+      </div>
+      <div class="dokapon-stage" id="dokaponStage">
+        <div class="dokapon-loading" id="dokaponLoading">LOADING GOLD ROAD...</div>
+        <iframe id="dokaponFrame" title="Gold Road — Board Rivals" allow="autoplay"></iframe>
+      </div>
     </div>
 
     <!-- MUSIC PLAYER -->
@@ -760,6 +1168,8 @@ const games = {
 
 const secrets = {
   override: { label: 'Security Override', failUrl: '/' },
+  hack: { label: 'Security Override', failUrl: '/' },
+  vault: { label: 'Security Override', failUrl: '/' },
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -819,7 +1229,7 @@ const gameCommand = {
 
 const reflexGames = {
   syncup:  { cmd: 'syncup',  label: 'SYNC TEST',    rounds: 3, timeLimit: 10, speedBase: 1.8, speedPerRound: 0.6, zoneBase: 0.22, zonePerRound: 0.02, unlockUrl: null },
-  syncup2: { cmd: 'syncup2', label: 'SYNC TEST II', rounds: 5, timeLimit: 8,  speedBase: 2.4, speedPerRound: 0.8, zoneBase: 0.16, zonePerRound: 0.015, unlockUrl: null },
+  syncup2: { cmd: 'syncup2', label: 'SYNC TEST II', rounds: 5, timeLimit: 10,  speedBase: 2.4, speedPerRound: 0.8, zoneBase: 0.16, zonePerRound: 0.015, unlockUrl: null },
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -872,23 +1282,157 @@ function unlockSokoban2(){
   try { sessionStorage.setItem(SOKOBAN2_UNLOCK_KEY, '1'); } catch(e) {}
 }
 
-function getMinigameMenuEntries(){
-  const entries = [
-    { icon: '&#9673;', title: 'SYNC TEST', desc: 'Tap timing challenge — hit the moving zone before the 10s clock runs out.', action: () => { closeMinigameMenu(); startReflex(reflexGames.syncup); } },
-    { icon: '&#9646;&#9646;', title: 'PONG BREAKOUT', desc: 'Classic paddle-and-ball brick breaker. Clear the wall to win.', action: () => { closeMinigameMenu(); startBreakout(0); } },
-    { icon: '&#9635;', title: 'BOX RUN', desc: 'Push crates onto the glowing marks. A freshly generated warehouse every time.', action: () => { closeMinigameMenu(); startSokoban(0); } },
-  ];
-  if (syncup2Unlocked) {
-    entries.push({ icon: '&#9673;&#9673;', title: 'SYNC TEST II', desc: 'Faster bar, tighter zone, less time. For SYNC TEST graduates.', action: () => { closeMinigameMenu(); startReflex(reflexGames.syncup2); } });
-  }
-  if (breakout2Unlocked) {
-    entries.push({ icon: '&#9646;&#9646;&#9646;', title: 'PONG BREAKOUT II', desc: 'A denser wall and a faster ball. Clear it for bragging rights.', action: () => { closeMinigameMenu(); startBreakout(1); } });
-  }
-  if (sokoban2Unlocked) {
-    entries.push({ icon: '&#9635;&#9635;', title: 'BOX RUN II', desc: 'Bigger warehouse, more crates, tighter corridors.', action: () => { closeMinigameMenu(); startSokoban(1); } });
-  }
-  return entries;
+const TD2_UNLOCK_KEY = 'lx_td2_unlocked';
+let td2Unlocked = false;
+try { td2Unlocked = sessionStorage.getItem(TD2_UNLOCK_KEY) === '1'; } catch(e) {}
+function unlockTd2(){
+  if (td2Unlocked) return;
+  td2Unlocked = true;
+  try { sessionStorage.setItem(TD2_UNLOCK_KEY, '1'); } catch(e) {}
 }
+
+const SOULBOX2_UNLOCK_KEY = 'lx_soulbox2_unlocked';
+let soulbox2Unlocked = false;
+try { soulbox2Unlocked = sessionStorage.getItem(SOULBOX2_UNLOCK_KEY) === '1'; } catch(e) {}
+function unlockSoulbox2(){
+  if (soulbox2Unlocked) return;
+  soulbox2Unlocked = true;
+  try { sessionStorage.setItem(SOULBOX2_UNLOCK_KEY, '1'); } catch(e) {}
+}
+
+const DICEDUEL2_UNLOCK_KEY = 'lx_diceduel2_unlocked';
+let diceduel2Unlocked = false;
+try { diceduel2Unlocked = sessionStorage.getItem(DICEDUEL2_UNLOCK_KEY) === '1'; } catch(e) {}
+function unlockDiceduel2(){
+  if (diceduel2Unlocked) return;
+  diceduel2Unlocked = true;
+  try { sessionStorage.setItem(DICEDUEL2_UNLOCK_KEY, '1'); } catch(e) {}
+}
+
+const RHYTHM2_UNLOCK_KEY = 'lx_rhythm2_unlocked';
+let rhythm2Unlocked = false;
+try { rhythm2Unlocked = sessionStorage.getItem(RHYTHM2_UNLOCK_KEY) === '1'; } catch(e) {}
+function unlockRhythm2(){
+  if (rhythm2Unlocked) return;
+  rhythm2Unlocked = true;
+  try { sessionStorage.setItem(RHYTHM2_UNLOCK_KEY, '1'); } catch(e) {}
+}
+
+const PINBALL2_UNLOCK_KEY = 'lx_pinball2_unlocked';
+let pinball2Unlocked = false;
+try { pinball2Unlocked = sessionStorage.getItem(PINBALL2_UNLOCK_KEY) === '1'; } catch(e) {}
+function unlockPinball2(){
+  if (pinball2Unlocked) return;
+  pinball2Unlocked = true;
+  try { sessionStorage.setItem(PINBALL2_UNLOCK_KEY, '1'); } catch(e) {}
+}
+/* Difficulty tier (1-10) per sector, one re-run at a time makes the
+   next play of that sector harder, capping at 10 — from there the
+   only way to keep escalating is to move on to the next sector. */
+const TD_TIER_KEYS = ['lx_td_tier1', 'lx_td_tier2'];
+let tdTiers = TD_TIER_KEYS.map(k => {
+  let v = 1;
+  try { v = Math.max(1, Math.min(10, parseInt(sessionStorage.getItem(k), 10) || 1)); } catch(e) {}
+  return v;
+});
+function saveTdTier(levelIndex){
+  try { sessionStorage.setItem(TD_TIER_KEYS[levelIndex], String(tdTiers[levelIndex])); } catch(e) {}
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ARCADE META — categories, signal points, and the gacha vendor.
+   Winning any minigame earns points (1pt for a level 1 clear, 2pt
+   for a level 2 clear). Only SYNC TEST starts unlocked; every other
+   game has to be rolled for at the SIGNAL VENDOR using those points.
+   All state resets each browser session, same as the unlock flags
+   above.
+   ═══════════════════════════════════════════════════════════════ */
+const arcadeCategories = ['Action','Arcade','Puzzle','Strategy','Rhythm','Card & Dice','Racing','Shooter','Platformer','Sports','Board'];
+const categoryIcons = {
+  'Action':'&#9889;', 'Arcade':'&#9646;', 'Puzzle':'&#9635;', 'Strategy':'&#9873;',
+  'Rhythm':'&#9835;', 'Card & Dice':'&#9824;', 'Racing':'&#9654;', 'Shooter':'&#8853;',
+  'Platformer':'&#9650;', 'Sports':'&#9917;', 'Board':'&#9814;',
+};
+
+const minigameRegistry = [
+  { id:'syncup', title:'SYNC TEST', category:'Action', icon:'&#9673;',
+    levels: [
+      { label:'SYNC TEST', desc:'Tap timing challenge — hit the moving zone before the 10s clock runs out.', points:1, play:()=>startReflex(reflexGames.syncup), unlocked:()=>true },
+      { label:'SYNC TEST II', desc:'Faster bar, tighter zone, less time. For SYNC TEST graduates.', points:2, play:()=>startReflex(reflexGames.syncup2), unlocked:()=>syncup2Unlocked },
+    ] },
+  { id:'breakout', title:'PONG BREAKOUT', category:'Arcade', icon:'&#9646;&#9646;',
+    levels: [
+      { label:'PONG BREAKOUT', desc:'Classic paddle-and-ball brick breaker. Clear the wall to win.', points:1, play:()=>startBreakout(0), unlocked:()=>true },
+      { label:'PONG BREAKOUT II', desc:'A denser wall and a faster ball. Clear it for bragging rights.', points:2, play:()=>startBreakout(1), unlocked:()=>breakout2Unlocked },
+    ] },
+  { id:'sokoban', title:'BOX RUN', category:'Puzzle', icon:'&#9635;',
+    levels: [
+      { label:'BOX RUN', desc:'Push crates onto the glowing marks. A freshly generated warehouse every time.', points:1, play:()=>startSokoban(0), unlocked:()=>true },
+      { label:'BOX RUN II', desc:'Bigger warehouse, more crates, tighter corridors.', points:2, play:()=>startSokoban(1), unlocked:()=>sokoban2Unlocked },
+    ] },
+  { id:'towerdefense', title:'GRID DEFENSE', category:'Strategy', icon:'&#9873;',
+    levels: [
+      { label:'GRID DEFENSE', desc:()=>('Defense-Grid style tower defense — stop the aliens before they steal your power cores. Tier '+tdTiers[0]+'/10.'), points:1, play:()=>startTowerDefense(0), unlocked:()=>true },
+      { label:'GRID DEFENSE II', desc:()=>('A longer, nastier sector for commanders who held Sector 7. Tier '+tdTiers[1]+'/10.'), points:2, play:()=>startTowerDefense(1), unlocked:()=>td2Unlocked },
+    ] },
+  { id:'soulbox', title:'SOUL BOX', category:'Action', icon:'&#10084;',
+    levels: [
+      { label:'SOUL BOX', desc:'A ten-second bullet-dodge encounter — keep your SOUL alive in the box against a rogue process.', points:1, play:()=>startSoulbox(0), unlocked:()=>true },
+      { label:'SOUL BOX II', desc:'Fourteen seconds, a tighter box, faster fire, and a nasty diagonal volley late. For SOUL BOX survivors.', points:2, play:()=>startSoulbox(1), unlocked:()=>soulbox2Unlocked },
+    ] },
+  { id:'diceduel', title:'DICE DUEL', category:'Card & Dice', icon:'&#9861;',
+    levels: [
+      { label:'DICE DUEL', desc:'Roll for initiative, then a blind best-of-3 vs a rogue process — Attack, Defend, Counter, or Magic. Ante 3 points, a win pays double.', points:0, play:()=>startDiceDuel(0), unlocked:()=>true },
+      { label:'DICE DUEL II', desc:'Higher stakes against an admin daemon that starts reading your patterns. Ante 5 points, better payout.', points:0, play:()=>startDiceDuel(1), unlocked:()=>diceduel2Unlocked },
+    ] },
+  { id:'rhythm', title:'SIGNAL SYNC', category:'Rhythm', icon:'&#9835;',
+    levels: [
+      { label:'SIGNAL SYNC', desc:'Four-lane arrow rhythm run charted straight off the waveform. Arrow keys on desktop, tap the lanes on mobile.', points:1, play:()=>startRhythm(0), unlocked:()=>true },
+      { label:'SIGNAL SYNC II', desc:'A second track with hold-and-slide notes mixed in — hold the arrow, then drag/press over to the next lane before it lands. Arrow keys on desktop, hold + drag on mobile.', points:2, play:()=>startRhythm(1), unlocked:()=>rhythm2Unlocked },
+    ] },
+  { id:'pinball', title:'SILICON PINBALL', category:'Arcade', icon:'&#9899;',
+    levels: [
+      { label:'SILICON PINBALL', desc:'Classic flipper table — keep the ball alive and hit 300 points across 3 balls.', points:1, play:()=>startPinball(0), unlocked:()=>true },
+      { label:'SILICON PINBALL II', desc:'A denser bumper cluster, a narrower drain, and a 600 point target. For table veterans.', points:2, play:()=>startPinball(1), unlocked:()=>pinball2Unlocked },
+    ] },
+  { id:'dokapon', title:'GOLD ROAD', category:'Board', icon:'&#9814;',
+    levels: [
+      { label:'GOLD ROAD', desc:'Roll around a board of rivals — battle, shop, and claim castles for toll income. Richest net worth after the final round wins.', points:2, play:()=>startDokapon(), unlocked:()=>true },
+    ] },
+];
+
+const UNLOCKED_GAMES_KEY = 'lx_unlocked_games';
+let unlockedGameIds = new Set(['syncup']);
+try {
+  const raw = sessionStorage.getItem(UNLOCKED_GAMES_KEY);
+  if (raw) raw.split(',').filter(Boolean).forEach(id => unlockedGameIds.add(id));
+} catch(e) {}
+function saveUnlockedGames(){
+  try { sessionStorage.setItem(UNLOCKED_GAMES_KEY, Array.from(unlockedGameIds).join(',')); } catch(e) {}
+}
+function isGameUnlocked(id){ return unlockedGameIds.has(id); }
+function unlockGame(id){ unlockedGameIds.add(id); saveUnlockedGames(); }
+
+const ARCADE_POINTS_KEY = 'lx_arcade_points';
+let arcadePoints = 0;
+try { arcadePoints = Math.max(0, parseInt(sessionStorage.getItem(ARCADE_POINTS_KEY), 10) || 0); } catch(e) {}
+function saveArcadePoints(){ try { sessionStorage.setItem(ARCADE_POINTS_KEY, String(arcadePoints)); } catch(e) {} }
+function awardPoints(n){
+  arcadePoints += n;
+  saveArcadePoints();
+  if (typeof updateVendorHud === 'function') updateVendorHud();
+  return n;
+}
+function pointsMsg(n){
+  return '<span class="small" style="color:var(--bright);">+'+n+' SIGNAL POINT'+(n===1?'':'S')+'</span>';
+}
+
+const VENDOR_COST_BASE = 5, VENDOR_COST_STEP = 2;
+function vendorRollCost(){
+  const rollsDone = Math.max(0, unlockedGameIds.size - 1);
+  return VENDOR_COST_BASE + rollsDone*VENDOR_COST_STEP;
+}
+function vendorLockedGames(){ return minigameRegistry.filter(g => !isGameUnlocked(g.id)); }
 
 const musicCmd = 'music';
 /* ═══════════════════════════════════════════════════════════════
@@ -947,6 +1491,45 @@ function updateClock() {
 }
 updateClock(); setInterval(updateClock, 1000);
 
+/* ═══════════════════════════════════════
+   OVERRIDE LOCKOUT COOLDOWN
+   In-memory only — a page refresh always
+   resets it instantly (new session).
+   ═══════════════════════════════════════ */
+const OVERRIDE_COOLDOWN_MS = 60000;
+let overrideCooldownEnd = 0;
+
+function overrideCooldownRemaining() {
+  return Math.max(0, Math.ceil((overrideCooldownEnd - Date.now()) / 1000));
+}
+
+function goHomeLocked() {
+  /* Previously this did a hard `window.location.href` reload with a
+     `?locked=1` marker, then tried to re-focus the input after the
+     reload finished. Mobile browsers (iOS Safari especially) won't
+     reliably pop the keyboard for a programmatic focus that isn't
+     directly inside a user gesture — and a script-triggered page
+     reload followed by a setTimeout is about as far from a user
+     gesture as it gets. Net effect: the terminal would come back
+     with a blinking cursor that looked focused but silently ate
+     every keystroke. Doing the lockout in place — no navigation,
+     same #real-input element the person already typed OVERRIDE
+     into — sidesteps that entirely. */
+  document.getElementById('hackOverlay').classList.remove('active');
+  hackState = null;
+  clearInterval(hackTimerInterval);
+  overrideCooldownEnd = Date.now() + OVERRIDE_COOLDOWN_MS;
+  append('<span class="err">CONNECTION TERMINATED — SECURITY LOCKOUT ENGAGED</span>');
+  append('<span class="dim">OVERRIDE access disabled for 60s.</span>');
+  input.value = ''; typed.textContent = '';
+  input.focus();
+}
+
+/* Re-focus whenever the tab/page becomes visible again — covers bfcache
+   restores (back/forward) and app-switch-and-return on mobile, both of
+   which can silently drop focus off the input without any visual sign. */
+window.addEventListener('pageshow', () => { input.focus(); });
+
 document.getElementById('terminal').addEventListener('click', () => {
   if (document.querySelector('.sc-overlay.active')) return;
   input.focus();
@@ -995,7 +1578,7 @@ input.addEventListener('keydown', e => {
     append('  MUSIC       - Open music player');
     append('  VIDEO       - Open video player');
     append('  GAMES       - List IF games');
-    append('  OVERRIDE    - Bypass security systems');
+    append('  OVERRIDE    - Bypass security systems'+(overrideCooldownRemaining()>0?'  <span class="err">[LOCKED '+overrideCooldownRemaining()+'s]</span>':''));
     append('  HELP        - Show this list');
     append('  CLS         - Clear screen');
     append('  VER         - Version info');
@@ -1007,13 +1590,13 @@ input.addEventListener('keydown', e => {
   if (cmd === 'cls') { out.innerHTML = ''; return; }
   if (cmd === 'ver') {
     append('<span class="hdr">Liluxsaru Terminal [Version 1.0]</span>');
-    append('<span class="dim">liluxsaru.do.am - Terminal Navigation v1.0</span>');
+    append('<span class="dim">liluxsaru.github.io - Terminal Navigation v1.0</span>');
     return;
   }
   if (cmd === 'dir') {
     append('<span class="hdr"> Volume in drive C has no label.\n Directory of C:\\LILUXSARU</span>\n');
     Object.entries(pages).forEach(([k]) => append('01/01/99  12:00AM    &lt;PAGE&gt;    '+k.toUpperCase()));
-    append('01/01/99  12:00AM    &lt;SECURE&gt;  OVERRIDE');
+    append('01/01/99  12:00AM    &lt;SECURE&gt;  OVERRIDE'+(overrideCooldownRemaining()>0?'  <span class="err">[LOCKED '+overrideCooldownRemaining()+'s]</span>':''));
     let dirCount = Object.keys(pages).length+1;
     if (minigameUnlocked) { append('01/01/99  12:00AM    &lt;GAME&gt;    MINIGAME'); dirCount++; }
     append('<span class="dim">       '+dirCount+' page(s)</span>');
@@ -1036,6 +1619,12 @@ input.addEventListener('keydown', e => {
     return;
   }
   if (secrets[cmd]) {
+    const remaining = overrideCooldownRemaining();
+    if (remaining > 0) {
+      append('<span class="err">ACCESS DENIED — SECURITY LOCKOUT ACTIVE</span>');
+      append('<span class="dim">Retry in '+remaining+'s.</span>');
+      return;
+    }
     append('<span class="warn">Initiating security override...</span>');
     setTimeout(() => startHack(secrets[cmd]), 400); return;
   }
@@ -1060,11 +1649,26 @@ input.addEventListener('keydown', e => {
     append('<span class="warn">Loading minigame archive...</span>');
     setTimeout(() => openMinigameMenu(), 400); return;
   }
+  /* Hidden cheat — deliberately absent from HELP, DIR, and every menu.
+     Instantly unlocks every minigame in the registry. */
+  if (cmd === 'upupdowndownleftrightleftrightba') {
+    minigameRegistry.forEach(g => unlockGame(g.id));
+    append('<span class="ok">All signals acquired.</span>');
+    return;
+  }
   append('<span class="err">\''+raw+'\' is not recognized as an internal\nor external command, operable program or batch file.</span>');
 });
 
 function append(html) {
-  out.innerHTML += html + '\n';
+  /* insertAdjacentHTML only parses the NEW fragment instead of re-parsing
+     and rebuilding the entire accumulated terminal history like innerHTML +=
+     did. That was O(n^2) over a long session and the main cause of mobile
+     slowdown/crashes the longer the terminal log grew. */
+  out.insertAdjacentHTML('beforeend', html + '\n');
+  /* Cap scrollback so the DOM can't grow unbounded over a long session. */
+  while (out.childNodes.length > 500) {
+    out.removeChild(out.firstChild);
+  }
   out.scrollTop = out.scrollHeight;
 }
 
@@ -1095,9 +1699,13 @@ function buildHackPool(wordLen) {
   return {candidates:fallback,answer:fallback[0]};
 }
 
+const hackTimerEl = document.getElementById('hackTimer');
+let hackTimerInterval = null;
+const HACK_TIME_LIMIT = 30;
+
 function startHack(target) {
   const {candidates,answer}=buildHackPool(6);
-  hackState={target,answer,candidates,attemptsLeft:4,locked:false,history:[]};
+  hackState={target,answer,candidates,attemptsLeft:4,locked:false,history:[],timeLeft:HACK_TIME_LIMIT};
   document.getElementById('hackOverlay').classList.add('active');
   document.getElementById('hackFeed').innerHTML='';
   document.getElementById('hackHistory').innerHTML='';
@@ -1105,6 +1713,33 @@ function startHack(target) {
   feed('<span class="warn">LILUXSARU TERMLINK PROTOCOL</span>');
   feed('ENTER PASSWORD NOW');
   renderHackGrid();
+  startHackTimer();
+}
+
+function startHackTimer(){
+  clearInterval(hackTimerInterval);
+  hackState.timeLeft=HACK_TIME_LIMIT;
+  updateHackTimerDisplay();
+  hackTimerInterval=setInterval(()=>{
+    if(!hackState||hackState.locked){ clearInterval(hackTimerInterval); return; }
+    hackState.timeLeft--;
+    updateHackTimerDisplay();
+    if(hackState.timeLeft<=0){ clearInterval(hackTimerInterval); hackTimeout(); }
+  },1000);
+}
+
+function updateHackTimerDisplay(){
+  const t=Math.max(0,hackState.timeLeft);
+  hackTimerEl.textContent=t+'s';
+  hackTimerEl.classList.toggle('low', t<=5);
+}
+
+function hackTimeout(){
+  if(!hackState||hackState.locked) return;
+  hackState.locked=true;
+  feed('<span class="err">TIME EXPIRED</span>');
+  feed('<span class="dim">REDIRECTING...</span>');
+  setTimeout(()=>{ goHomeLocked(); },1200);
 }
 
 function renderAttempts(){
@@ -1252,6 +1887,7 @@ function guessWord(el){
   feed('&gt; '+word);
   if(word===answer){
     hackState.locked=true;
+    clearInterval(hackTimerInterval);
     feed('<span class="ok">ACCESS GRANTED</span>');
     el.classList.add('touched');
     setTimeout(()=>{
@@ -1269,9 +1905,10 @@ function guessWord(el){
   renderAttempts();
   if(hackState.attemptsLeft<=0){
     hackState.locked=true;
+    clearInterval(hackTimerInterval);
     feed('<span class="err">TERMINAL LOCKED</span>');
     feed('<span class="dim">REDIRECTING...</span>');
-    setTimeout(()=>{ window.location.href=hackState.target.failUrl||'/'; },1200);
+    setTimeout(()=>{ goHomeLocked(); },1200);
   }
 }
 
@@ -1297,6 +1934,12 @@ const reflexResult    = document.getElementById('reflexResult');
 function startReflex(config){
   reflexState={config,round:1,totalRounds:config.rounds,hits:0,direction:1,position:0,speed:1.6,zoneStart:0,zoneWidth:0,locked:false,awaitingTap:true,timeLeft:config.timeLimit||10};
   reflexLabel.textContent=config.label;
+  /* The terminal's text input can still be focused from typing the
+     command that launched this game (e.g. "syncup"), which keeps the
+     mobile on-screen keyboard up and covering/distracting from the
+     tap-timing game underneath. Sync Test never needs typed input, so
+     blur it immediately to dismiss the keyboard. */
+  input.blur();
   reflexOverlay.classList.add('active');
   reflexResult.textContent='\u00A0'; reflexResult.className='reflex-result';
   startReflexTimer();
@@ -1380,11 +2023,12 @@ function reflexWin(){
   const isFirstMinigameUnlock = isSyncupLevel1 && !minigameUnlocked;
   const isFirstSyncup2Unlock  = isSyncupLevel1 && !syncup2Unlocked;
   if(isSyncupLevel1){ unlockMinigameMenu(); unlockSyncup2(); }
+  const earnedPoints = awardPoints(isSyncupLevel1 ? 1 : 2);
   setTimeout(()=>{
     if(reflexState.config.unlockUrl){ window.location.href=reflexState.config.unlockUrl; }
     else {
       reflexOverlay.classList.remove('active');
-      append('<span class="ok">Sync test passed.</span>');
+      append('<span class="ok">Sync test passed.</span> <span style="color:var(--bright);">+'+earnedPoints+' signal point'+(earnedPoints===1?'':'s')+'.</span>');
       if(isFirstMinigameUnlock){
         append('<span class="hdr">NEW COMMAND UNLOCKED:</span> <span class="ok">MINIGAME</span> — type MINIGAME to open the arcade menu.');
       }
@@ -1421,39 +2065,70 @@ window.addEventListener('resize',()=>{
 const minigameMenuOverlay = document.getElementById('minigameMenuOverlay');
 const minigameListEl      = document.getElementById('minigameList');
 const minigameMenuClose   = document.getElementById('minigameMenuClose');
+const menuPointsDisplayEl = document.getElementById('menuPointsDisplay');
+const openVendorBtn       = document.getElementById('openVendorBtn');
 
 function renderMinigameMenu(){
   minigameListEl.innerHTML = '';
-  getMinigameMenuEntries().forEach(g=>{
-    const row = document.createElement('div');
-    row.className = 'minigame-entry';
-    row.tabIndex = 0;
-    row.innerHTML =
-      '<div class="minigame-entry-icon">'+g.icon+'</div>'+
-      '<div class="minigame-entry-info">'+
-        '<div class="minigame-entry-title">'+g.title+'</div>'+
-        '<div class="minigame-entry-desc">'+g.desc+'</div>'+
-      '</div>'+
-      '<div class="minigame-entry-arrow">&#9654;</div>';
-    row.addEventListener('click', g.action);
-    minigameListEl.appendChild(row);
+  menuPointsDisplayEl.textContent = 'POINTS: '+arcadePoints;
+  arcadeCategories.forEach(cat => {
+    const gamesInCat = minigameRegistry.filter(g => g.category===cat);
+    const header = document.createElement('div');
+    header.className = 'minigame-category-header';
+    const unlockedCount = gamesInCat.filter(g => isGameUnlocked(g.id)).length;
+    header.innerHTML = '<span class="mch-icon">'+categoryIcons[cat]+'</span><span>'+cat.toUpperCase()+'</span>'+
+      (gamesInCat.length ? '<span class="mch-count">'+unlockedCount+'/'+gamesInCat.length+'</span>' : '');
+    minigameListEl.appendChild(header);
+
+    if (gamesInCat.length===0){
+      const empty = document.createElement('div');
+      empty.className = 'minigame-empty-cat';
+      empty.textContent = 'NO SIGNAL DETECTED IN THIS BAND YET';
+      minigameListEl.appendChild(empty);
+      return;
+    }
+
+    gamesInCat.forEach(game => {
+      game.levels.forEach((lvl, li) => {
+        const gameUnlocked = isGameUnlocked(game.id);
+        const levelUnlocked = li===0 ? gameUnlocked : (gameUnlocked && lvl.unlocked());
+        const row = document.createElement('div');
+        row.className = 'minigame-entry' + (levelUnlocked ? '' : ' locked');
+        row.tabIndex = levelUnlocked ? 0 : -1;
+        const desc = levelUnlocked
+          ? (typeof lvl.desc==='function' ? lvl.desc() : lvl.desc)
+          : (li===0 ? 'LOCKED — roll for it at the SIGNAL VENDOR' : 'Beat '+game.title+' once to unlock this level');
+        row.innerHTML =
+          '<div class="minigame-entry-icon">'+(levelUnlocked ? game.icon : '&#128274;')+'</div>'+
+          '<div class="minigame-entry-info">'+
+            '<div class="minigame-entry-title">'+lvl.label+'</div>'+
+            '<div class="minigame-entry-desc">'+desc+'</div>'+
+          '</div>'+
+          '<div class="minigame-entry-arrow">'+(levelUnlocked ? '&#9654;' : '&#8212;')+'</div>';
+        if (levelUnlocked){
+          row.addEventListener('click', () => { closeMinigameMenu(); lvl.play(); });
+        }
+        minigameListEl.appendChild(row);
+      });
+    });
   });
 }
 
 function openMinigameMenu(){
   renderMinigameMenu();
   minigameMenuOverlay.classList.add('active');
-  const first = minigameListEl.querySelector('.minigame-entry');
+  const first = minigameListEl.querySelector('.minigame-entry:not(.locked)');
   if(first) first.focus();
 }
 function closeMinigameMenu(){
   minigameMenuOverlay.classList.remove('active');
 }
 minigameMenuClose.addEventListener('click', ()=>{ closeMinigameMenu(); input.focus(); });
+openVendorBtn.addEventListener('click', ()=>{ closeMinigameMenu(); openVendor(); });
 
 document.addEventListener('keydown', e=>{
   if(!minigameMenuOverlay.classList.contains('active')) return;
-  const rows = Array.from(minigameListEl.querySelectorAll('.minigame-entry'));
+  const rows = Array.from(minigameListEl.querySelectorAll('.minigame-entry:not(.locked)'));
   if(!rows.length) return;
   const idx = rows.indexOf(document.activeElement);
   if(e.key==='ArrowDown'){ e.preventDefault(); rows[(idx+1+rows.length)%rows.length].focus(); }
@@ -1461,6 +2136,84 @@ document.addEventListener('keydown', e=>{
   else if(e.key===' '||e.key==='Spacebar'||e.key==='Enter'){
     if(idx>=0){ e.preventDefault(); rows[idx].click(); }
   }
+});
+
+/* ═══════════════════════════════════════
+   SIGNAL VENDOR — gacha unlock terminal
+   ═══════════════════════════════════════ */
+const vendorOverlay     = document.getElementById('vendorOverlay');
+const vendorPointsEl    = document.getElementById('vendorPoints');
+const vendorClose       = document.getElementById('vendorClose');
+const vendorCapsuleEl   = document.getElementById('vendorCapsule');
+const vendorCapsuleIcon = document.getElementById('vendorCapsuleIcon');
+const vendorStatusEl    = document.getElementById('vendorStatus');
+const vendorPoolEl      = document.getElementById('vendorPool');
+const vendorRollBtn     = document.getElementById('vendorRollBtn');
+const vendorCostLabelEl = document.getElementById('vendorCostLabel');
+let vendorRolling = false;
+
+function updateVendorHud(){
+  if (menuPointsDisplayEl) menuPointsDisplayEl.textContent = 'POINTS: '+arcadePoints;
+  if (!vendorPointsEl) return;
+  vendorPointsEl.textContent = 'POINTS: '+arcadePoints;
+  const locked = vendorLockedGames();
+  const cost = vendorRollCost();
+  vendorCostLabelEl.textContent = cost;
+  vendorRollBtn.disabled = vendorRolling || locked.length===0 || arcadePoints < cost;
+  if (locked.length===0){
+    vendorPoolEl.textContent = 'ALL SIGNALS ACQUIRED — NOTHING LEFT TO SCAN.';
+  } else {
+    const cats = Array.from(new Set(locked.map(g=>g.category)));
+    vendorPoolEl.textContent = locked.length+' UNDISCOVERED SIGNAL'+(locked.length===1?'':'S')+' — DETECTED IN: '+cats.join(' \u00B7 ').toUpperCase();
+  }
+}
+
+function openVendor(){
+  vendorRolling = false;
+  vendorCapsuleEl.classList.remove('rolling');
+  vendorCapsuleIcon.innerHTML = '?';
+  const locked = vendorLockedGames();
+  vendorStatusEl.textContent = locked.length===0
+    ? 'ALL SIGNALS ACQUIRED. THE VENDOR HAS NOTHING LEFT TO OFFER.'
+    : 'INSERT SIGNAL POINTS TO SCAN FOR AN UNKNOWN TRANSMISSION.';
+  updateVendorHud();
+  vendorOverlay.classList.add('active');
+}
+function closeVendor(){
+  vendorOverlay.classList.remove('active');
+}
+vendorClose.addEventListener('click', ()=>{ closeVendor(); input.focus(); });
+
+function rollVendor(){
+  if (vendorRolling) return;
+  const locked = vendorLockedGames();
+  if (locked.length===0){ vendorStatusEl.textContent='ALL SIGNALS ACQUIRED — NOTHING LEFT TO SCAN.'; return; }
+  const cost = vendorRollCost();
+  if (arcadePoints < cost){ vendorStatusEl.textContent='INSUFFICIENT SIGNAL POINTS. NEED '+cost+' TO SCAN.'; return; }
+
+  arcadePoints -= cost;
+  saveArcadePoints();
+  vendorRolling = true;
+  vendorCapsuleEl.classList.add('rolling');
+  vendorCapsuleIcon.innerHTML = '?';
+  vendorStatusEl.textContent = 'SCANNING...';
+  updateVendorHud();
+
+  setTimeout(()=>{
+    const pick = locked[Math.floor(Math.random()*locked.length)];
+    unlockGame(pick.id);
+    vendorCapsuleEl.classList.remove('rolling');
+    vendorCapsuleIcon.innerHTML = pick.icon;
+    vendorStatusEl.innerHTML = 'SIGNAL LOCKED: <span style="color:var(--bright);">'+pick.title+'</span><br>['+pick.category.toUpperCase()+'] — now in the minigame menu.';
+    vendorRolling = false;
+    updateVendorHud();
+  }, 900);
+}
+vendorRollBtn.addEventListener('click', rollVendor);
+
+document.addEventListener('keydown', e=>{
+  if(!vendorOverlay.classList.contains('active')) return;
+  if(e.key===' '||e.key==='Spacebar'||e.key==='Enter'){ e.preventDefault(); rollVendor(); }
 });
 
 /* ═══════════════════════════════════════
@@ -1639,7 +2392,9 @@ function breakoutWin(){
   breakoutState.over=true;
   const isFirstBreakoutWin = (breakoutLevelIndex===0 && !breakout2Unlocked);
   if(breakoutLevelIndex===0) unlockBreakout2();
+  const earnedPoints = awardPoints(breakoutLevelIndex+1);
   let msg='WALL CLEARED<span class="small">SCORE: '+breakoutState.score+' &mdash; SPACE OR TAP TO PLAY AGAIN</span>';
+  msg += pointsMsg(earnedPoints);
   if(isFirstBreakoutWin) msg+='<span class="small" style="color:var(--bright);">NEW LEVEL UNLOCKED — PONG BREAKOUT II IN THE MINIGAME MENU</span>';
   breakoutMsgEl.innerHTML=msg;
   breakoutMsgEl.classList.add('active');
@@ -1680,6 +2435,13 @@ breakoutCanvas.addEventListener('pointerdown', e=>{
   breakoutPointerMove(e.clientX);
   if(breakoutState && breakoutState.over){ initBreakoutLevel(); breakoutMsgEl.classList.remove('active'); }
   else { launchBreakoutBall(); }
+});
+/* The message overlay sits on TOP of the canvas (inset:0) while active,
+   so it silently swallows every tap/click meant for the canvas below —
+   that's why "tap to retry" wasn't working on touch OR mouse. Give the
+   message its own listener too. */
+breakoutMsgEl.addEventListener('pointerdown', ()=>{
+  if(breakoutState && breakoutState.over){ initBreakoutLevel(); breakoutMsgEl.classList.remove('active'); }
 });
 
 window.addEventListener('resize', ()=>{
@@ -1925,7 +2687,9 @@ function checkSokobanWin(){
   sokobanState.won = true;
   const isFirstWin = (sokobanLevelIndex===0 && !sokoban2Unlocked);
   if(sokobanLevelIndex===0) unlockSokoban2();
+  const earnedPoints = awardPoints(sokobanLevelIndex+1);
   let msg = 'WAREHOUSE CLEAR<span class="small">MOVES: '+sokobanState.moves+' &mdash; PUSHES: '+sokobanState.pushes+'</span>';
+  msg += pointsMsg(earnedPoints);
   if(isFirstWin) msg += '<span class="small" style="color:var(--bright);">NEW LEVEL UNLOCKED — BOX RUN II IN THE MINIGAME MENU</span>';
   msg += '<span class="small">TAP RESET FOR A NEW LAYOUT, OR CLOSE</span>';
   sokobanMsgEl.innerHTML = msg;
@@ -1977,9 +2741,2165 @@ window.addEventListener('resize', ()=>{
   if(sokobanOverlay.classList.contains('active')) layoutSokobanGrid();
 });
 
+/* ═══════════════════════════════════════════════════════════════
+   GRID DEFENSE — Defense Grid: The Awakening-style tower defense.
+   Aliens that reach the exit don't just cost a life — they pick up
+   a power core and RUN IT BACK toward the entrance. Kill a carrier
+   before it escapes and the core (and a bonus) comes back with it;
+   let it reach the entrance and the core is gone for good.
+
+   Difficulty: each sector has a tier (1-10). Clearing a sector bumps
+   its tier for the next run, capping at 10 — from there the only
+   way to keep climbing is to move on to the next sector.
+   ═══════════════════════════════════════════════════════════════ */
+const tdLevels = [
+  {
+    label: 'SECTOR 7 GRID', cols: 11, rows: 7, totalWaves: 8,
+    startGold: 150, startLives: 20,
+    path: [[0,3],[1,3],[2,3],[2,2],[2,1],[3,1],[4,1],[5,1],[5,2],[5,3],[5,4],[5,5],[6,5],[7,5],[8,5],[8,4],[8,3],[8,2],[9,2],[10,2]],
+  },
+  {
+    label: 'SECTOR 12 GRID', cols: 14, rows: 8, totalWaves: 10,
+    startGold: 200, startLives: 20,
+    path: [[0,4],[1,4],[2,4],[2,3],[2,2],[2,1],[3,1],[4,1],[5,1],[5,2],[5,3],[5,4],[5,5],[5,6],[6,6],[7,6],[8,6],[8,5],[8,4],[8,3],[8,2],[8,1],[9,1],[10,1],[10,2],[10,3],[10,4],[10,5],[10,6],[10,7],[11,7],[12,7],[13,7]],
+  },
+];
+
+const towerTypes = {
+  blaster: { name:'BLASTER', cost:50,  damage:9,  range:2.3, fireRate:2.2, color:'#7dd9ff', kind:'single' },
+  cannon:  { name:'CANNON',  cost:110, damage:34, range:2.0, fireRate:0.65, color:'#ff9f4d', kind:'splash', splashRadius:1.1, projectileSpeed:7 },
+  tesla:   { name:'TESLA',   cost:95,  damage:7,  range:2.0, fireRate:1.5, color:'#c88bff', kind:'chain', chainCount:3, chainRadius:1.4 },
+  cryo:    { name:'CRYO',    cost:70,  damage:3,  range:1.9, fireRate:1.1, color:'#8be9ff', kind:'slow', slowFactor:0.45, slowDuration:2.2 },
+};
+
+const enemyTypes = {
+  scout: { name:'SCOUT', hp:16,  speed:2.6,  reward:4,  radius:0.26, color:'#7dd9ff' },
+  grunt: { name:'GRUNT', hp:32,  speed:1.7,  reward:6,  radius:0.30, color:'#ffcf4d' },
+  brute: { name:'BRUTE', hp:85,  speed:1.05, reward:12, radius:0.38, color:'#ff5d5d' },
+  elite: { name:'ELITE', hp:150, speed:1.35, reward:20, radius:0.34, color:'#d68cff' },
+};
+
+let tdState = null, tdLevelIndex = 0, tdRAF = null, tdLastTs = 0, tdHintTimer = null;
+const tdOverlay    = document.getElementById('tdOverlay');
+const tdStageEl    = document.getElementById('tdStage');
+const tdCanvas     = document.getElementById('tdCanvas');
+const tdCtx        = tdCanvas.getContext('2d');
+const tdMsgEl      = document.getElementById('tdMsg');
+const tdTitleEl    = document.getElementById('tdTitle');
+const tdLivesEl    = document.getElementById('tdLives');
+const tdGoldEl     = document.getElementById('tdGold');
+const tdWaveEl     = document.getElementById('tdWave');
+const tdTierEl     = document.getElementById('tdTier');
+const tdHintEl     = document.getElementById('tdHint');
+const tdClose      = document.getElementById('tdClose');
+const tdDeployBtn  = document.getElementById('tdDeployBtn');
+const tdTowerListEl= document.getElementById('tdTowerList');
+
+function tdTierHpMult(tier){ return 1 + (tier-1)*0.15; }
+function tdTierSpeedMult(tier){ return 1 + (tier-1)*0.035; }
+function tdWaveHpMult(waveNum){ return 1 + (waveNum-1)*0.07; }
+function tdLevelHpMult(levelIndex){ return 1 + levelIndex*0.5; }
+function tdLevelSpeedMult(levelIndex){ return 1 + levelIndex*0.08; }
+
+function tdWaveEnemyCount(levelIndex, waveNum, tier){
+  return 6 + waveNum*2 + Math.floor((tier-1)*1.3) + levelIndex*3;
+}
+function tdBuildWaveQueue(levelIndex, waveNum, tier){
+  const lvl = tdLevels[levelIndex];
+  const count = tdWaveEnemyCount(levelIndex, waveNum, tier);
+  const eliteUnlocked = (waveNum >= Math.ceil(lvl.totalWaves*0.6)) || tier>=6 || levelIndex>=1;
+  const bruteUnlocked = waveNum>=3 || tier>=3;
+  const gruntUnlocked = waveNum>=2 || tier>=2;
+  const queue=[];
+  for(let i=0;i<count;i++){
+    let type='scout';
+    const roll = Math.random();
+    if(eliteUnlocked && roll<0.12) type='elite';
+    else if(bruteUnlocked && roll<0.32) type='brute';
+    else if(gruntUnlocked && roll<0.6) type='grunt';
+    queue.push({ type, delay: i*Math.max(0.32, 0.62-tier*0.02) });
+  }
+  return queue;
+}
+
+function startTowerDefense(levelIndex){
+  tdLevelIndex = levelIndex || 0;
+  const lvl = tdLevels[tdLevelIndex];
+  const tier = tdTiers[tdLevelIndex];
+  tdTitleEl.textContent = lvl.label;
+  tdOverlay.classList.add('active');
+  tdMsgEl.classList.remove('active');
+
+  const pathSet = new Set(lvl.path.map(([c,r])=>c+','+r));
+  tdState = {
+    lvl, tier, pathSet,
+    lives: Math.max(10, lvl.startLives - Math.floor((tier-1)/2)),
+    gold: lvl.startGold + (tier-1)*10,
+    waveIndex: -1, waveActive: false, spawnQueue: [], waveTimer: 0,
+    enemies: [], towers: [], projectiles: [], beams: [], explosions: [], popups: [],
+    time: 0, over: false, selectedTowerType: null,
+    cellSize: 40, gridOriginX: 0, gridOriginY: 0, waypoints: [],
+  };
+  layoutTdCanvas();
+  renderTdPalette();
+  updateTdHud();
+  cancelAnimationFrame(tdRAF);
+  tdLastTs = performance.now();
+  tdRAF = requestAnimationFrame(tdLoop);
+}
+
+function layoutTdCanvas(){
+  if(!tdState) return;
+  const w = tdStageEl.clientWidth, h = tdStageEl.clientHeight;
+  if(w<=0 || h<=0) return;
+  tdCanvas.width = w; tdCanvas.height = h;
+  const lvl = tdState.lvl;
+  const cellSize = Math.max(10, Math.min(w/lvl.cols, h/lvl.rows));
+  tdState.cellSize = cellSize;
+  tdState.gridOriginX = (w - cellSize*lvl.cols)/2;
+  tdState.gridOriginY = (h - cellSize*lvl.rows)/2;
+  tdState.waypoints = lvl.path.map(([c,r])=>({
+    x: tdState.gridOriginX + (c+0.5)*cellSize,
+    y: tdState.gridOriginY + (r+0.5)*cellSize,
+  }));
+}
+window.addEventListener('resize', ()=>{
+  if(tdOverlay.classList.contains('active')) layoutTdCanvas();
+});
+/* Window 'resize' only fires for actual browser-window size changes —
+   it misses flexbox reflows, mobile browser chrome show/hide, and
+   orientation-driven layout shifts, any of which can leave the canvas's
+   internal buffer size out of sync with its rendered size and throw
+   off tap-to-cell math. Watch the stage element directly instead. */
+if(typeof ResizeObserver !== 'undefined'){
+  new ResizeObserver(()=>{
+    if(tdOverlay.classList.contains('active')) layoutTdCanvas();
+  }).observe(tdStageEl);
+}
+
+function tdCellCenter(col,row){
+  return { x: tdState.gridOriginX+(col+0.5)*tdState.cellSize, y: tdState.gridOriginY+(row+0.5)*tdState.cellSize };
+}
+
+function renderTdPalette(){
+  tdTowerListEl.innerHTML = '';
+  Object.entries(towerTypes).forEach(([key,t])=>{
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'td-tower-btn';
+    btn.dataset.towerKey = key;
+    btn.innerHTML = '<div class="td-tower-icon" style="background:'+t.color+';box-shadow:0 0 6px '+t.color+';"></div>'+
+      '<div class="td-tower-name">'+t.name+'</div><div class="td-tower-cost">'+t.cost+'c</div>';
+    btn.addEventListener('click', ()=>{
+      if(!tdState || tdState.over) return;
+      tdState.selectedTowerType = (tdState.selectedTowerType===key) ? null : key;
+      updateTdPaletteState();
+    });
+    tdTowerListEl.appendChild(btn);
+  });
+  updateTdPaletteState();
+}
+
+/* Lightweight per-frame refresh — toggles classes on the EXISTING
+   buttons instead of rebuilding the DOM, so a tap/click in progress
+   is never interrupted mid-gesture (that was breaking tower
+   selection on both touch and mouse). */
+function updateTdPaletteState(){
+  Array.from(tdTowerListEl.children).forEach(btn=>{
+    const key = btn.dataset.towerKey;
+    const t = towerTypes[key];
+    const affordable = !tdState || tdState.gold >= t.cost;
+    btn.classList.toggle('selected', !!(tdState && tdState.selectedTowerType===key));
+    btn.classList.toggle('unaffordable', !affordable);
+  });
+}
+
+function tdFlashHint(text){
+  tdHintEl.textContent = text;
+  tdHintEl.classList.add('td-hint-flash');
+  clearTimeout(tdHintTimer);
+  tdHintTimer = setTimeout(()=>{
+    tdHintEl.textContent = 'PICK A TOWER, TAP THE GRID TO BUILD — TAP A BUILT TOWER TO SELL IT';
+    tdHintEl.classList.remove('td-hint-flash');
+  }, 1400);
+}
+
+function updateTdHud(){
+  if(!tdState) return;
+  const lvl = tdState.lvl;
+  tdLivesEl.textContent = 'CORES: '+Math.max(0,tdState.lives);
+  tdGoldEl.textContent = 'CREDITS: '+tdState.gold;
+  tdWaveEl.textContent = 'WAVE '+Math.min(tdState.waveIndex+1, lvl.totalWaves)+'/'+lvl.totalWaves;
+  tdTierEl.textContent = 'TIER '+tdState.tier;
+  const canDeploy = !tdState.waveActive && !tdState.over && (tdState.waveIndex+1) < lvl.totalWaves;
+  tdDeployBtn.disabled = !canDeploy;
+  updateTdPaletteState();
+}
+
+tdDeployBtn.addEventListener('click', ()=>{
+  if(!tdState || tdState.over || tdState.waveActive) return;
+  const lvl = tdState.lvl;
+  if(tdState.waveIndex+1 >= lvl.totalWaves) return;
+  tdState.waveIndex++;
+  tdState.spawnQueue = tdBuildWaveQueue(tdLevelIndex, tdState.waveIndex+1, tdState.tier);
+  tdState.waveActive = true;
+  tdState.waveTimer = 0;
+  updateTdHud();
+});
+
+/* ── grid tap: build / sell ── */
+function tdHandlePointer(clientX, clientY){
+  if(!tdState || tdState.over) return;
+  const rect = tdCanvas.getBoundingClientRect();
+  if(rect.width<=0 || rect.height<=0) return;
+  /* Convert from CSS/rendered pixels to the canvas's internal buffer
+     pixels — these can drift apart (e.g. a layout reflow between the
+     last resize and this tap), and assuming a 1:1 mapping is what was
+     causing taps to land on the wrong cell. */
+  const scaleX = tdCanvas.width / rect.width;
+  const scaleY = tdCanvas.height / rect.height;
+  const x = (clientX-rect.left) * scaleX, y = (clientY-rect.top) * scaleY;
+  const col = Math.floor((x-tdState.gridOriginX)/tdState.cellSize);
+  const row = Math.floor((y-tdState.gridOriginY)/tdState.cellSize);
+  const lvl = tdState.lvl;
+  if(col<0||col>=lvl.cols||row<0||row>=lvl.rows) return;
+  if(tdState.pathSet.has(col+','+row)){ tdFlashHint('CAN\'T BUILD ON THE CORRIDOR'); return; }
+  const existing = tdState.towers.find(t=>t.col===col && t.row===row);
+  if(existing){
+    const refund = Math.floor(towerTypes[existing.type].cost*0.5);
+    tdState.gold += refund;
+    tdState.towers = tdState.towers.filter(t=>t!==existing);
+    tdFlashHint('SOLD FOR '+refund+' CREDITS');
+    updateTdHud();
+    return;
+  }
+  if(!tdState.selectedTowerType){ tdFlashHint('PICK A TOWER FIRST'); return; }
+  const t = towerTypes[tdState.selectedTowerType];
+  if(tdState.gold < t.cost){ tdFlashHint('NOT ENOUGH CREDITS'); return; }
+  tdState.gold -= t.cost;
+  tdState.towers.push({ type: tdState.selectedTowerType, col, row, cooldown:0 });
+  updateTdHud();
+}
+tdCanvas.addEventListener('pointerdown', e=>{ e.preventDefault(); tdHandlePointer(e.clientX, e.clientY); });
+
+tdClose.addEventListener('click', ()=>{ closeTowerDefense(); input.focus(); });
+function closeTowerDefense(){
+  cancelAnimationFrame(tdRAF);
+  tdOverlay.classList.remove('active');
+  tdState = null;
+  tdMsgEl.classList.remove('active');
+}
+
+/* ── enemy movement / targeting ── */
+function tdSpawnEnemy(type){
+  const base = enemyTypes[type];
+  const hp = base.hp * tdTierHpMult(tdState.tier) * tdWaveHpMult(tdState.waveIndex+1) * tdLevelHpMult(tdLevelIndex);
+  const speed = base.speed * tdTierSpeedMult(tdState.tier) * tdLevelSpeedMult(tdLevelIndex);
+  const reward = Math.round(base.reward * (1+(tdState.tier-1)*0.1));
+  tdState.enemies.push({
+    type, hp, maxHp: hp, speed, reward, radius: base.radius, color: base.color,
+    segIndex: 0, segT: 0, dir: 1, carrying: false, slowUntil: 0, slowFactor: 1, dead: false, escaped: false,
+  });
+}
+
+function tdEnemyPixelPos(en){
+  const wp = tdState.waypoints;
+  const a = wp[en.segIndex], b = wp[en.segIndex+en.dir];
+  if(!a || !b) return a || {x:0,y:0};
+  return { x: a.x+(b.x-a.x)*en.segT, y: a.y+(b.y-a.y)*en.segT };
+}
+
+function tdStepEnemy(en, dt){
+  const slowed = en.slowUntil > tdState.time;
+  const effSpeed = en.speed * (slowed ? en.slowFactor : 1);
+  en.segT += effSpeed * dt;
+  const pathLen = tdState.waypoints.length;
+  while(en.segT >= 1){
+    en.segT -= 1;
+    en.segIndex += en.dir;
+    if(en.dir===1 && en.segIndex >= pathLen-1){
+      en.segIndex = pathLen-1;
+      if(!en.carrying){ en.carrying = true; en.dir = -1; en.speed *= 1.15; }
+      en.segT = 0;
+      break;
+    }
+    if(en.dir===-1 && en.segIndex <= 0){
+      en.segIndex = 0; en.escaped = true; en.segT = 0;
+      break;
+    }
+  }
+}
+
+function tdPickTarget(originPx, rangePx, exclude){
+  let best=null, bestScore=-Infinity;
+  let bestCarrier=null, bestCarrierScore=Infinity;
+  for(const en of tdState.enemies){
+    if(en.dead || (exclude && exclude.has(en))) continue;
+    const pos = tdEnemyPixelPos(en);
+    const d = Math.hypot(pos.x-originPx.x, pos.y-originPx.y);
+    if(d > rangePx) continue;
+    if(en.carrying){
+      const remaining = en.segIndex+en.segT;
+      if(remaining < bestCarrierScore){ bestCarrierScore=remaining; bestCarrier=en; }
+    } else {
+      const score = en.segIndex+en.segT;
+      if(score > bestScore){ bestScore=score; best=en; }
+    }
+  }
+  return bestCarrier || best;
+}
+
+function tdAddBeam(from,to,color){ tdState.beams.push({ x1:from.x,y1:from.y,x2:to.x,y2:to.y,color, expires: tdState.time+0.12 }); }
+function tdAddExplosion(x,y,color){ tdState.explosions.push({ x,y,color, start: tdState.time, duration:0.35 }); }
+function tdAddPopup(text,x,y,color){ tdState.popups.push({ text,x,y,color, start: tdState.time, duration:0.9 }); }
+
+function tdApplyDamage(en, dmg){
+  en.hp -= dmg;
+  if(en.hp <= 0 && !en.dead){
+    en.dead = true;
+    const pos = tdEnemyPixelPos(en);
+    if(en.carrying){
+      const bonus = Math.round(en.reward*1.5);
+      tdState.gold += bonus;
+      tdAddPopup('CORE RECOVERED +'+bonus, pos.x, pos.y, '#ffe98a');
+    } else {
+      tdState.gold += en.reward;
+      tdAddPopup('+'+en.reward, pos.x, pos.y, '#9be89b');
+    }
+    tdAddExplosion(pos.x, pos.y, en.color);
+  }
+}
+
+function tdFireSingle(tower, towerPx, key){
+  const t = towerTypes[key];
+  const target = tdPickTarget(towerPx, t.range*tdState.cellSize, null);
+  if(!target) return false;
+  tdApplyDamage(target, t.damage);
+  if(key==='cryo'){ target.slowUntil = tdState.time + t.slowDuration; target.slowFactor = t.slowFactor; }
+  tdAddBeam(towerPx, tdEnemyPixelPos(target), t.color);
+  return true;
+}
+function tdFireCannon(tower, towerPx){
+  const t = towerTypes.cannon;
+  const target = tdPickTarget(towerPx, t.range*tdState.cellSize, null);
+  if(!target) return false;
+  const pos = tdEnemyPixelPos(target);
+  tdState.projectiles.push({ x:towerPx.x, y:towerPx.y, tx:pos.x, ty:pos.y, speed:t.projectileSpeed*tdState.cellSize, damage:t.damage, splashRadius:t.splashRadius*tdState.cellSize, color:t.color });
+  return true;
+}
+function tdFireTesla(tower, towerPx){
+  const t = towerTypes.tesla;
+  const hit = new Set();
+  let current = tdPickTarget(towerPx, t.range*tdState.cellSize, null);
+  if(!current) return false;
+  let fromPx = towerPx;
+  for(let i=0;i<t.chainCount && current;i++){
+    tdApplyDamage(current, t.damage);
+    hit.add(current);
+    const curPos = tdEnemyPixelPos(current);
+    tdAddBeam(fromPx, curPos, t.color);
+    fromPx = curPos;
+    current = tdPickTarget(curPos, t.chainRadius*tdState.cellSize, hit);
+  }
+  return true;
+}
+
+function tdUpdate(dt){
+  if(!tdState || tdState.over) return;
+  tdState.time += dt;
+
+  if(tdState.waveActive){
+    tdState.waveTimer += dt;
+    while(tdState.spawnQueue.length && tdState.waveTimer >= tdState.spawnQueue[0].delay){
+      const item = tdState.spawnQueue.shift();
+      tdSpawnEnemy(item.type);
+    }
+  }
+
+  for(const en of tdState.enemies){
+    if(en.dead) continue;
+    tdStepEnemy(en, dt);
+    if(en.escaped){
+      tdState.lives--;
+      tdAddPopup('CORE LOST', tdEnemyPixelPos(en).x, tdEnemyPixelPos(en).y, '#ff6b6b');
+    }
+  }
+  tdState.enemies = tdState.enemies.filter(en => !en.dead && !en.escaped);
+
+  for(const tower of tdState.towers){
+    tower.cooldown -= dt;
+    if(tower.cooldown > 0) continue;
+    const t = towerTypes[tower.type];
+    const towerPx = tdCellCenter(tower.col, tower.row);
+    let fired = false;
+    if(tower.type==='cannon') fired = tdFireCannon(tower, towerPx);
+    else if(tower.type==='tesla') fired = tdFireTesla(tower, towerPx);
+    else fired = tdFireSingle(tower, towerPx, tower.type);
+    if(fired) tower.cooldown = 1/t.fireRate;
+  }
+
+  for(const p of tdState.projectiles){
+    const dx=p.tx-p.x, dy=p.ty-p.y;
+    const dist = Math.hypot(dx,dy);
+    const step = p.speed*dt;
+    if(step >= dist){
+      p.x=p.tx; p.y=p.ty; p.arrived=true;
+      for(const en of tdState.enemies){
+        if(en.dead) continue;
+        const pos = tdEnemyPixelPos(en);
+        if(Math.hypot(pos.x-p.tx,pos.y-p.ty) <= p.splashRadius) tdApplyDamage(en, p.damage);
+      }
+      tdAddExplosion(p.tx,p.ty,p.color);
+    } else {
+      p.x += dx/dist*step; p.y += dy/dist*step;
+    }
+  }
+  tdState.projectiles = tdState.projectiles.filter(p=>!p.arrived);
+  tdState.beams = tdState.beams.filter(b=>b.expires>tdState.time);
+  tdState.explosions = tdState.explosions.filter(ex=>tdState.time-ex.start<ex.duration);
+  tdState.popups = tdState.popups.filter(pp=>tdState.time-pp.start<pp.duration);
+
+  if(tdState.lives <= 0){ tdGameOver(); return; }
+
+  if(tdState.waveActive && tdState.spawnQueue.length===0 && tdState.enemies.length===0){
+    tdState.waveActive = false;
+    const lvl = tdState.lvl;
+    if(tdState.waveIndex+1 >= lvl.totalWaves){ tdWin(); return; }
+    const bonus = 20 + (tdState.waveIndex+1)*4;
+    tdState.gold += bonus;
+    tdAddPopup('WAVE CLEAR +'+bonus, tdCanvas.width/2, 30, '#9be89b');
+  }
+  updateTdHud();
+}
+
+function tdWin(){
+  tdState.over = true; tdState.waveActive = false;
+  const levelIndex = tdLevelIndex;
+  const wasMaxTier = tdTiers[levelIndex] >= 10;
+  if(tdTiers[levelIndex] < 10){ tdTiers[levelIndex]++; saveTdTier(levelIndex); }
+  const isFirstClear = levelIndex===0 && !td2Unlocked;
+  if(levelIndex===0) unlockTd2();
+  const earnedPoints = awardPoints(levelIndex+1);
+  let msg = 'SECTOR HELD<span class="small">CORES REMAINING: '+Math.max(0,tdState.lives)+' &mdash; CREDITS: '+tdState.gold+'</span>';
+  msg += pointsMsg(earnedPoints);
+  msg += '<span class="small">DIFFICULTY TIER NOW '+tdTiers[levelIndex]+(wasMaxTier?' (MAX FOR THIS SECTOR)':'')+'</span>';
+  if(isFirstClear) msg += '<span class="small" style="color:var(--bright);">NEW SECTOR UNLOCKED — GRID DEFENSE II IN THE MINIGAME MENU</span>';
+  msg += '<span class="small">TAP TO REDEPLOY, OR CLOSE</span>';
+  tdMsgEl.innerHTML = msg;
+  tdMsgEl.classList.add('active');
+  updateTdHud();
+}
+function tdGameOver(){
+  tdState.over = true; tdState.waveActive = false;
+  const lvl = tdState.lvl;
+  let msg = 'GRID BREACHED<span class="small">REACHED WAVE '+Math.min(tdState.waveIndex+1, lvl.totalWaves)+'/'+lvl.totalWaves+' AT TIER '+tdState.tier+'</span>';
+  msg += '<span class="small">TAP TO RETRY, OR CLOSE</span>';
+  tdMsgEl.innerHTML = msg;
+  tdMsgEl.classList.add('active');
+  updateTdHud();
+}
+function tdRetry(){
+  if(!tdState || !tdState.over) return;
+  startTowerDefense(tdLevelIndex);
+}
+tdMsgEl.addEventListener('click', ()=>{ if(tdOverlay.classList.contains('active')) tdRetry(); });
+document.addEventListener('keydown', e=>{
+  if(!tdOverlay.classList.contains('active') || !tdState || !tdState.over) return;
+  if(e.key===' ' || e.key==='Enter'){ e.preventDefault(); tdRetry(); }
+});
+
+/* ── rendering ── */
+function tdDraw(){
+  if(!tdState) return;
+  const ctx = tdCtx, lvl = tdState.lvl, cs = tdState.cellSize;
+  ctx.clearRect(0,0,tdCanvas.width,tdCanvas.height);
+
+  for(let r=0;r<lvl.rows;r++){
+    for(let c=0;c<lvl.cols;c++){
+      const x = tdState.gridOriginX+c*cs, y = tdState.gridOriginY+r*cs;
+      const onPath = tdState.pathSet.has(c+','+r);
+      ctx.fillStyle = onPath ? 'rgba(120,200,255,0.10)' : 'rgba(255,255,255,0.02)';
+      ctx.fillRect(x,y,cs,cs);
+      ctx.strokeStyle = onPath ? 'rgba(120,200,255,0.28)' : 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x+0.5,y+0.5,cs-1,cs-1);
+    }
+  }
+  const entry = tdState.waypoints[0], exit = tdState.waypoints[tdState.waypoints.length-1];
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = Math.max(9,cs*0.22)+'px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('IN', entry.x, entry.y+3);
+  ctx.fillText('OUT', exit.x, exit.y+3);
+
+  for(const tower of tdState.towers){
+    const t = towerTypes[tower.type];
+    const px = tdCellCenter(tower.col, tower.row);
+    ctx.beginPath();
+    ctx.arc(px.x, px.y, t.range*cs, 0, Math.PI*2);
+    ctx.strokeStyle = t.color; ctx.globalAlpha = 0.08; ctx.lineWidth = 1;
+    ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.save();
+    ctx.shadowColor = t.color; ctx.shadowBlur = 10;
+    ctx.fillStyle = t.color;
+    const s = cs*0.6;
+    ctx.fillRect(px.x-s/2, px.y-s/2, s, s);
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(px.x-s/2, px.y-s/2, s, s);
+  }
+
+  for(const b of tdState.beams){
+    const alpha = Math.max(0, (b.expires-tdState.time)/0.12);
+    ctx.strokeStyle = b.color; ctx.globalAlpha = alpha*0.9; ctx.lineWidth = 2.5;
+    ctx.shadowColor = b.color; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.moveTo(b.x1,b.y1); ctx.lineTo(b.x2,b.y2); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  }
+
+  for(const p of tdState.projectiles){
+    ctx.save();
+    ctx.shadowColor = p.color; ctx.shadowBlur = 8;
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,cs*0.1,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  for(const en of tdState.enemies){
+    const pos = tdEnemyPixelPos(en);
+    const r = en.radius*cs;
+    const slowed = en.slowUntil > tdState.time;
+    if(en.carrying){
+      const pulse = 0.5+0.5*Math.sin(tdState.time*8);
+      ctx.beginPath();
+      ctx.arc(pos.x,pos.y,r+4+pulse*2,0,Math.PI*2);
+      ctx.strokeStyle = '#ffe98a'; ctx.globalAlpha = 0.7; ctx.lineWidth = 2;
+      ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    ctx.save();
+    if(slowed){ ctx.shadowColor = '#8be9ff'; ctx.shadowBlur = 10; }
+    ctx.fillStyle = en.color;
+    ctx.beginPath(); ctx.arc(pos.x,pos.y,r,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(pos.x,pos.y,r,0,Math.PI*2); ctx.stroke();
+
+    const barW = r*2.4, barX = pos.x-barW/2, barY = pos.y-r-8;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(barX,barY,barW,3);
+    const hpFrac = Math.max(0, en.hp/en.maxHp);
+    ctx.fillStyle = hpFrac>0.5 ? '#9be89b' : hpFrac>0.25 ? '#ffcf4d' : '#ff5d5d';
+    ctx.fillRect(barX,barY,barW*hpFrac,3);
+  }
+
+  for(const ex of tdState.explosions){
+    const t = (tdState.time-ex.start)/ex.duration;
+    const radius = cs*0.15 + t*cs*0.7;
+    ctx.beginPath();
+    ctx.arc(ex.x,ex.y,radius,0,Math.PI*2);
+    ctx.strokeStyle = ex.color; ctx.globalAlpha = Math.max(0,1-t); ctx.lineWidth = 2;
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
+  ctx.textAlign = 'center';
+  for(const pp of tdState.popups){
+    const t = (tdState.time-pp.start)/pp.duration;
+    ctx.globalAlpha = Math.max(0,1-t);
+    ctx.fillStyle = pp.color;
+    ctx.font = 'bold '+Math.max(10,cs*0.28)+'px monospace';
+    ctx.fillText(pp.text, pp.x, pp.y - t*20);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function tdLoop(ts){
+  if(!tdState){ return; }
+  const dt = Math.min(0.05, (ts-tdLastTs)/1000);
+  tdLastTs = ts;
+  tdUpdate(dt);
+  tdDraw();
+  tdRAF = requestAnimationFrame(tdLoop);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SOUL BOX — a tiny Undertale/Deltarune-style battle: a SOUL
+   confined to a box, dodging incoming shots for a set duration. No
+   copied characters or text — just the genre's signature "heart in
+   a box" bullet-dodge mechanic, reskinned as a rogue terminal
+   process attacking your SOUL. Two levels: SOUL BOX (10s) and the
+   tougher SOUL BOX II (14s, tighter box, faster fire, a late
+   diagonal volley), unlocked after clearing SOUL BOX once.
+   ═══════════════════════════════════════════════════════════════ */
+const SOULBOX_BOX_ASPECT = 1.5;
+let soulboxState = null, soulboxRAF = null, soulboxLastTs = 0, soulboxDragging = false, soulboxLevelIndex = 0;
+const soulboxOverlay = document.getElementById('soulboxOverlay');
+const soulboxStageEl = document.getElementById('soulboxStage');
+const soulboxCanvas  = document.getElementById('soulboxCanvas');
+const soulboxCtx     = soulboxCanvas.getContext('2d');
+const soulboxHpEl    = document.getElementById('soulboxHp');
+const soulboxTimerEl = document.getElementById('soulboxTimer');
+const soulboxMsgEl   = document.getElementById('soulboxMsg');
+const soulboxClose   = document.getElementById('soulboxClose');
+const soulboxTitleEl = document.getElementById('soulboxTitle');
+const soulboxHintEl  = document.getElementById('soulboxHint');
+
+/* Level 0 is the base game; level 1 unlocks after clearing level 0 once.
+   Each phase covers the game until `until` seconds; `interval` is the
+   spawn gap in that phase; `doubleChance` (level 2 only) is the odds
+   a spawn fires a second bullet alongside the first. */
+const soulboxLevels = [
+  {
+    label: 'SOUL BOX',
+    hint: 'ARROW KEYS / WASD TO MOVE — DRAG THE SOUL ON MOBILE — SURVIVE 10 SECONDS. THE BOX CLOSES IN AS TIME RUNS OUT.',
+    duration: 10, maxHp: 20, margin: 34, heartSpeed: 0.9, invulnWindow: 0.55, boxShrink: 0.38,
+    phases: [
+      { until: 4,        interval: 0.30, kind: 'drop',  speedMin: 120, speedMax: 185, dmgMin: 2, dmgMax: 3, color: '#ffffff' },
+      { until: 7.5,      interval: 0.22, kind: 'side',  speedMin: 150, speedMax: 215, dmgMin: 2, dmgMax: 4, color: '#ffcf4d' },
+      { until: Infinity, interval: 0.14, kind: 'mixed', speedMin: 190, speedMax: 265, dmgMin: 3, dmgMax: 4, colors: ['#ff6b9d','#8be9ff'] },
+    ],
+  },
+  {
+    label: 'SOUL BOX II',
+    hint: 'ARROW KEYS / WASD TO MOVE — DRAG THE SOUL ON MOBILE — SURVIVE 14 SECONDS. TIGHTER BOX, DOUBLE SPAWNS, LATE DIAGONALS — AND IT KEEPS SHRINKING.',
+    duration: 14, maxHp: 18, margin: 46, heartSpeed: 0.95, invulnWindow: 0.45, boxShrink: 0.5,
+    phases: [
+      { until: 3.5,      interval: 0.24, kind: 'drop',     speedMin: 130, speedMax: 195, dmgMin: 2, dmgMax: 4, color: '#ffffff',                    doubleChance: 0.20 },
+      { until: 7,        interval: 0.19, kind: 'side',     speedMin: 155, speedMax: 220, dmgMin: 3, dmgMax: 4, color: '#ffcf4d',                    doubleChance: 0.30 },
+      { until: 10.5,     interval: 0.15, kind: 'mixed',    speedMin: 185, speedMax: 260, dmgMin: 3, dmgMax: 5, colors: ['#ff6b9d','#8be9ff'],       doubleChance: 0.40 },
+      { until: Infinity, interval: 0.12, kind: 'diagonal', speedMin: 200, speedMax: 280, dmgMin: 3, dmgMax: 5, color: '#c56bff',                    doubleChance: 0.50 },
+    ],
+  },
+];
+
+function startSoulbox(levelIndex){
+  soulboxLevelIndex = levelIndex || 0;
+  const cfg = soulboxLevels[soulboxLevelIndex];
+  soulboxTitleEl.textContent = cfg.label;
+  soulboxHintEl.textContent = cfg.hint;
+  soulboxOverlay.classList.add('active');
+  soulboxMsgEl.classList.remove('active');
+  soulboxState = {
+    cfg,
+    hp:cfg.maxHp, maxHp:cfg.maxHp, invulnUntil:0,
+    heart:{x:0.5,y:0.85},
+    bullets:[], time:0, spawnTimer:cfg.phases[0].interval/2, over:false, won:false,
+    keys:{up:false,down:false,left:false,right:false},
+    boxW:0, boxH:0, boxOriginX:0, boxOriginY:0,
+  };
+  layoutSoulbox();
+  updateSoulboxHud();
+  cancelAnimationFrame(soulboxRAF);
+  soulboxLastTs = performance.now();
+  soulboxRAF = requestAnimationFrame(soulboxLoop);
+}
+
+function layoutSoulbox(){
+  if(!soulboxState) return;
+  const w = soulboxStageEl.clientWidth, h = soulboxStageEl.clientHeight;
+  if(w<=0 || h<=0) return;
+  soulboxCanvas.width = w; soulboxCanvas.height = h;
+  const margin = soulboxState.cfg.margin;
+  let boxW = w - margin*2, boxH = boxW / SOULBOX_BOX_ASPECT;
+  if(boxH > h - margin*2){ boxH = h - margin*2; boxW = boxH * SOULBOX_BOX_ASPECT; }
+  /* Base (full-size, t=0) box — the box shrinks toward this same
+     center as the clock runs out, see soulboxUpdateBoxSize(). */
+  soulboxState.baseBoxW = boxW; soulboxState.baseBoxH = boxH;
+  soulboxState.baseCenterX = w/2; soulboxState.baseCenterY = h/2;
+  soulboxUpdateBoxSize();
+}
+
+/* Shrinking box: recomputed every frame from st.time so the box
+   closes in steadily over the level's duration. `boxShrink` on the
+   level config is how much of the box (0–1) is lost by the end —
+   e.g. 0.38 means it's down to 62% of its starting size at time-up. */
+function soulboxUpdateBoxSize(){
+  const st = soulboxState;
+  if(!st || !st.baseBoxW) return;
+  const shrink = st.cfg.boxShrink || 0;
+  const progress = Math.min(1, st.time / st.cfg.duration);
+  const scale = 1 - shrink * progress;
+  st.boxW = st.baseBoxW * scale;
+  st.boxH = st.baseBoxH * scale;
+  st.boxOriginX = st.baseCenterX - st.boxW/2;
+  st.boxOriginY = st.baseCenterY - st.boxH/2;
+}
+window.addEventListener('resize', ()=>{
+  if(soulboxOverlay.classList.contains('active')) layoutSoulbox();
+});
+if(typeof ResizeObserver !== 'undefined'){
+  new ResizeObserver(()=>{
+    if(soulboxOverlay.classList.contains('active')) layoutSoulbox();
+  }).observe(soulboxStageEl);
+}
+
+function soulboxCurrentPhase(st){
+  const phases = st.cfg.phases;
+  for(const ph of phases){ if(st.time < ph.until) return ph; }
+  return phases[phases.length-1];
+}
+
+function soulboxSpawnOne(st, ph){
+  const boxLeft = st.boxOriginX, boxRight = st.boxOriginX+st.boxW;
+  const boxTop = st.boxOriginY, boxBottom = st.boxOriginY+st.boxH;
+  const dmg = ph.dmgMin + Math.floor(Math.random()*(ph.dmgMax-ph.dmgMin+1));
+  const speed = ph.speedMin + Math.random()*(ph.speedMax-ph.speedMin);
+  if(ph.kind==='drop'){
+    const x = boxLeft+12+Math.random()*(st.boxW-24);
+    st.bullets.push({ x, y:boxTop-10, vx:0, vy:speed, r:5, color:ph.color, dmg });
+  } else if(ph.kind==='side'){
+    const fromLeft = Math.random()<0.5;
+    const y = boxTop+12+Math.random()*(st.boxH-24);
+    st.bullets.push({ x: fromLeft?boxLeft-10:boxRight+10, y, vx:(fromLeft?1:-1)*speed, vy:0, r:5, color:ph.color, dmg });
+  } else if(ph.kind==='mixed'){
+    const color = ph.colors[Math.floor(Math.random()*ph.colors.length)];
+    if(Math.random()<0.5){
+      const x = boxLeft+12+Math.random()*(st.boxW-24);
+      st.bullets.push({ x, y:boxTop-10, vx:0, vy:speed, r:5, color, dmg });
+    } else {
+      const fromLeft = Math.random()<0.5;
+      const y = boxTop+12+Math.random()*(st.boxH-24);
+      st.bullets.push({ x: fromLeft?boxLeft-10:boxRight+10, y, vx:(fromLeft?1:-1)*speed, vy:0, r:5, color, dmg });
+    }
+  } else if(ph.kind==='diagonal'){
+    const corners = [
+      {x:boxLeft-10, y:boxTop-10}, {x:boxRight+10, y:boxTop-10},
+      {x:boxLeft-10, y:boxBottom+10}, {x:boxRight+10, y:boxBottom+10},
+    ];
+    const from = corners[Math.floor(Math.random()*corners.length)];
+    const targetX = boxLeft + Math.random()*st.boxW;
+    const targetY = boxTop + Math.random()*st.boxH;
+    const dx = targetX-from.x, dy = targetY-from.y;
+    const len = Math.hypot(dx,dy) || 1;
+    st.bullets.push({ x:from.x, y:from.y, vx:(dx/len)*speed, vy:(dy/len)*speed, r:5, color:ph.color, dmg });
+  }
+}
+
+function soulboxSpawnBullet(){
+  const st = soulboxState;
+  const ph = soulboxCurrentPhase(st);
+  soulboxSpawnOne(st, ph);
+  if(ph.doubleChance && Math.random() < ph.doubleChance){ soulboxSpawnOne(st, ph); }
+}
+
+function soulboxUpdate(dt){
+  const st = soulboxState;
+  if(!st || st.over) return;
+  st.time += dt;
+  soulboxUpdateBoxSize();
+
+  let dx=0, dy=0;
+  if(st.keys.left) dx-=1; if(st.keys.right) dx+=1;
+  if(st.keys.up) dy-=1; if(st.keys.down) dy+=1;
+  if(dx || dy){
+    const len = Math.hypot(dx,dy) || 1;
+    const speed = st.cfg.heartSpeed;
+    const m = 0.035;
+    st.heart.x = Math.max(m, Math.min(1-m, st.heart.x + (dx/len)*speed*dt));
+    st.heart.y = Math.max(m, Math.min(1-m, st.heart.y + (dy/len)*speed*dt));
+  }
+
+  st.spawnTimer -= dt;
+  if(st.spawnTimer<=0){
+    soulboxSpawnBullet();
+    st.spawnTimer = soulboxCurrentPhase(st).interval;
+  }
+
+  for(const b of st.bullets){ b.x += b.vx*dt; b.y += b.vy*dt; }
+  st.bullets = st.bullets.filter(b =>
+    b.x > st.boxOriginX-30 && b.x < st.boxOriginX+st.boxW+30 &&
+    b.y > st.boxOriginY-30 && b.y < st.boxOriginY+st.boxH+30);
+
+  const heartPx = { x: st.boxOriginX+st.heart.x*st.boxW, y: st.boxOriginY+st.heart.y*st.boxH };
+  if(st.time >= st.invulnUntil){
+    for(const b of st.bullets){
+      if(Math.hypot(heartPx.x-b.x, heartPx.y-b.y) < b.r+6){
+        st.hp -= b.dmg;
+        st.invulnUntil = st.time + st.cfg.invulnWindow;
+        break;
+      }
+    }
+  }
+
+  updateSoulboxHud();
+  if(st.hp<=0){ soulboxLose(); return; }
+  if(st.time >= st.cfg.duration){ soulboxWin(); return; }
+}
+
+function updateSoulboxHud(){
+  const st = soulboxState;
+  if(!st) return;
+  soulboxHpEl.textContent = 'HP: '+Math.max(0,st.hp)+'/'+st.maxHp;
+  soulboxHpEl.classList.toggle('low', st.hp <= st.maxHp*0.3);
+  const remaining = Math.max(0, st.cfg.duration-st.time);
+  soulboxTimerEl.textContent = remaining.toFixed(1)+'s';
+  soulboxTimerEl.classList.toggle('low', remaining<=3);
+}
+
+function drawSoulboxHeart(ctx,x,y,size,color){
+  ctx.save();
+  ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 10;
+  ctx.beginPath();
+  const s = size;
+  ctx.moveTo(x, y+s*0.6);
+  ctx.bezierCurveTo(x-s, y-s*0.4, x-s*0.5, y-s*1.2, x, y-s*0.4);
+  ctx.bezierCurveTo(x+s*0.5, y-s*1.2, x+s, y-s*0.4, x, y+s*0.6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function soulboxDraw(){
+  const st = soulboxState;
+  if(!st) return;
+  const ctx = soulboxCtx;
+  ctx.clearRect(0,0,soulboxCanvas.width,soulboxCanvas.height);
+
+  ctx.save();
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+  ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 6;
+  ctx.strokeRect(st.boxOriginX, st.boxOriginY, st.boxW, st.boxH);
+  ctx.restore();
+
+  for(const b of st.bullets){
+    ctx.save();
+    ctx.shadowColor = b.color; ctx.shadowBlur = 8;
+    ctx.fillStyle = b.color;
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  const hx = st.boxOriginX+st.heart.x*st.boxW, hy = st.boxOriginY+st.heart.y*st.boxH;
+  const flashing = st.time < st.invulnUntil && Math.floor(st.time*12)%2===0;
+  if(!flashing) drawSoulboxHeart(ctx, hx, hy, 9, '#ff3b5c');
+}
+
+function soulboxWin(){
+  soulboxState.over = true; soulboxState.won = true;
+  cancelAnimationFrame(soulboxRAF);
+  const isFirstSoulboxWin = (soulboxLevelIndex===0 && !soulbox2Unlocked);
+  if(soulboxLevelIndex===0) unlockSoulbox2();
+  const earnedPoints = awardPoints(soulboxLevelIndex+1);
+  let msg = '* The static clears.<span class="small">YOUR SOUL HELD — HP '+Math.max(0,soulboxState.hp)+'/'+soulboxState.maxHp+'</span>';
+  msg += pointsMsg(earnedPoints);
+  if(isFirstSoulboxWin) msg += '<span class="small" style="color:var(--bright);">NEW LEVEL UNLOCKED — SOUL BOX II IN THE MINIGAME MENU</span>';
+  msg += '<span class="small">SPACE OR TAP TO RUN IT BACK, OR CLOSE</span>';
+  soulboxMsgEl.innerHTML = msg;
+  soulboxMsgEl.classList.add('active');
+}
+function soulboxLose(){
+  soulboxState.over = true; soulboxState.won = false;
+  cancelAnimationFrame(soulboxRAF);
+  let msg = '* Your SOUL flickers and fades.<span class="small">HELD ON FOR '+soulboxState.time.toFixed(1)+'s</span>';
+  msg += '<span class="small">SPACE OR TAP TO RETRY, OR CLOSE</span>';
+  soulboxMsgEl.innerHTML = msg;
+  soulboxMsgEl.classList.add('active');
+}
+function soulboxRetry(){
+  if(!soulboxState || !soulboxState.over) return;
+  startSoulbox(soulboxLevelIndex);
+}
+soulboxMsgEl.addEventListener('pointerdown', ()=>{ if(soulboxOverlay.classList.contains('active')) soulboxRetry(); });
+
+soulboxClose.addEventListener('click', ()=>{ closeSoulbox(); input.focus(); });
+function closeSoulbox(){
+  cancelAnimationFrame(soulboxRAF);
+  soulboxOverlay.classList.remove('active');
+  soulboxState = null;
+  soulboxMsgEl.classList.remove('active');
+}
+
+document.addEventListener('keydown', e=>{
+  if(!soulboxOverlay.classList.contains('active') || !soulboxState) return;
+  if(soulboxState.over){
+    if(e.key===' '||e.key==='Enter'){ e.preventDefault(); soulboxRetry(); }
+    return;
+  }
+  if(e.key==='ArrowUp'||e.key==='w'||e.key==='W'){ soulboxState.keys.up=true; e.preventDefault(); }
+  else if(e.key==='ArrowDown'||e.key==='s'||e.key==='S'){ soulboxState.keys.down=true; e.preventDefault(); }
+  else if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A'){ soulboxState.keys.left=true; e.preventDefault(); }
+  else if(e.key==='ArrowRight'||e.key==='d'||e.key==='D'){ soulboxState.keys.right=true; e.preventDefault(); }
+});
+document.addEventListener('keyup', e=>{
+  if(!soulboxState) return;
+  if(e.key==='ArrowUp'||e.key==='w'||e.key==='W') soulboxState.keys.up=false;
+  else if(e.key==='ArrowDown'||e.key==='s'||e.key==='S') soulboxState.keys.down=false;
+  else if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A') soulboxState.keys.left=false;
+  else if(e.key==='ArrowRight'||e.key==='d'||e.key==='D') soulboxState.keys.right=false;
+});
+
+function soulboxDragTo(clientX, clientY){
+  if(!soulboxState || soulboxState.over) return;
+  const rect = soulboxCanvas.getBoundingClientRect();
+  if(rect.width<=0 || rect.height<=0) return;
+  const scaleX = soulboxCanvas.width/rect.width, scaleY = soulboxCanvas.height/rect.height;
+  const x = (clientX-rect.left)*scaleX, y = (clientY-rect.top)*scaleY;
+  const st = soulboxState;
+  const nx = (x-st.boxOriginX)/st.boxW, ny = (y-st.boxOriginY)/st.boxH;
+  const m = 0.035;
+  st.heart.x = Math.max(m, Math.min(1-m, nx));
+  st.heart.y = Math.max(m, Math.min(1-m, ny));
+}
+soulboxCanvas.addEventListener('pointerdown', e=>{ soulboxDragging=true; soulboxDragTo(e.clientX,e.clientY); });
+soulboxCanvas.addEventListener('pointermove', e=>{ if(soulboxDragging) soulboxDragTo(e.clientX,e.clientY); });
+window.addEventListener('pointerup', ()=>{ soulboxDragging=false; });
+
+function soulboxLoop(ts){
+  if(!soulboxState) return;
+  const dt = Math.min(0.05, (ts-soulboxLastTs)/1000);
+  soulboxLastTs = ts;
+  soulboxUpdate(dt);
+  soulboxDraw();
+  if(!soulboxState.over) soulboxRAF = requestAnimationFrame(soulboxLoop);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DICE DUEL — a Dokapon-style dice-and-RPS gambling battle.
+
+   1. Roll a d6 each to decide who has INITIATIVE (reroll on a tie).
+   2. Best-of-3: each round both sides pick ATTACK, DEFEND, COUNTER,
+      or MAGIC blind, then reveal together. It's a 4-way cycle:
+        ATTACK beats COUNTER, COUNTER beats DEFEND,
+        DEFEND beats MAGIC,   MAGIC beats ATTACK.
+      If both sides pick the same move it's a clash — whoever won
+      the initiative roll takes it, so every round has a definite
+      winner and the dice roll always matters. First to 2 round
+      wins takes the match.
+   3. Gambling: the ante is spent the moment the duel starts. Win
+      and you get ante × payoutMult back; lose and it's gone.
+
+   Add a tougher opponent by pushing another entry onto diceLevels
+   below, same as breakoutLevels / soulboxLevels elsewhere in this
+   file — give it its own unlock flag if it should gate behind
+   clearing the level before it.
+   ═══════════════════════════════════════════════════════════════ */
+const DICE_BEATS = { attack:'counter', counter:'defend', defend:'magic', magic:'attack' };
+const DICE_ICON  = { attack:'&#9876;', defend:'&#128737;', counter:'&#8635;', magic:'&#10024;' };
+const DICE_LABEL = { attack:'ATTACK', defend:'DEFEND', counter:'COUNTER', magic:'MAGIC' };
+const DICE_MOVES = Object.keys(DICE_BEATS);
+
+const diceLevels = [
+  { label:'DICE DUEL', enemyName:'ROGUE PROCESS', ante:3, payoutMult:2, adaptive:false,
+    hint:'ATTACK BEATS COUNTER &middot; COUNTER BEATS DEFEND &middot; DEFEND BEATS MAGIC &middot; MAGIC BEATS ATTACK' },
+  { label:'DICE DUEL II', enemyName:'ADMIN DAEMON', ante:5, payoutMult:2.2, adaptive:true,
+    hint:'SAME CYCLE, HIGHER STAKES — THE ADMIN DAEMON STARTS READING YOUR PATTERN' },
+];
+
+let diceLevelIndex = 0, diceState = null;
+const diceOverlay      = document.getElementById('diceOverlay');
+const diceTitleEl      = document.getElementById('diceTitle');
+const diceAnteStatEl   = document.getElementById('diceAnteStat');
+const diceRoundStatEl  = document.getElementById('diceRoundStat');
+const diceClose        = document.getElementById('diceClose');
+const dicePlayerPipsEl = document.getElementById('dicePlayerPips');
+const diceEnemyPipsEl  = document.getElementById('diceEnemyPips');
+const dicePlayerCubeEl = document.getElementById('dicePlayerCube');
+const diceEnemyCubeEl  = document.getElementById('diceEnemyCube');
+const diceEnemyNameEl  = document.getElementById('diceEnemyName');
+const diceLogEl        = document.getElementById('diceLog');
+const diceChoicesEl    = document.getElementById('diceChoices');
+const diceMsgEl        = document.getElementById('diceMsg');
+const diceHintEl       = document.getElementById('diceHint');
+
+function diceLog(html){
+  const p = document.createElement('div');
+  p.innerHTML = html;
+  diceLogEl.appendChild(p);
+  diceLogEl.scrollTop = diceLogEl.scrollHeight;
+}
+function updateDicePips(){
+  dicePlayerPipsEl.innerHTML = '<span class="dice-pip'+(diceState.playerWins>=1?' won':'')+'"></span><span class="dice-pip'+(diceState.playerWins>=2?' won':'')+'"></span>';
+  diceEnemyPipsEl.innerHTML  = '<span class="dice-pip'+(diceState.enemyWins>=1?' won':'')+'"></span><span class="dice-pip'+(diceState.enemyWins>=2?' won':'')+'"></span>';
+}
+function updateDiceRoundStat(){
+  diceRoundStatEl.textContent = 'ROUND '+Math.min(diceState.round,3)+'/3';
+}
+
+function startDiceDuel(levelIndex){
+  diceLevelIndex = levelIndex || 0;
+  const cfg = diceLevels[diceLevelIndex];
+  diceTitleEl.textContent = cfg.label;
+  diceEnemyNameEl.textContent = cfg.enemyName;
+  diceAnteStatEl.textContent = 'ANTE: '+cfg.ante;
+  diceHintEl.innerHTML = cfg.hint;
+  diceLogEl.innerHTML = '';
+  diceChoicesEl.style.display = 'none';
+  diceMsgEl.classList.remove('active');
+  dicePlayerCubeEl.classList.remove('rolling'); diceEnemyCubeEl.classList.remove('rolling');
+  dicePlayerCubeEl.textContent = '?'; diceEnemyCubeEl.textContent = '?';
+
+  if (arcadePoints < cfg.ante){
+    diceState = { cfg, playerWins:0, enemyWins:0, round:1, over:true };
+    updateDicePips(); updateDiceRoundStat();
+    diceOverlay.classList.add('active');
+    diceMsgEl.innerHTML = '* Insufficient signal.<span class="small">NEED '+cfg.ante+' PTS TO ANTE UP &mdash; YOU HAVE '+arcadePoints+'.</span><span class="small">CLOSE UP AND EARN MORE FIRST</span>';
+    diceMsgEl.classList.add('active');
+    return;
+  }
+
+  arcadePoints -= cfg.ante;
+  saveArcadePoints();
+  updateVendorHud();
+
+  diceState = { cfg, playerWins:0, enemyWins:0, round:1, initiative:null, playerMoveHistory:[], over:false, resolving:false };
+  updateDicePips();
+  updateDiceRoundStat();
+  diceOverlay.classList.add('active');
+  rollInitiative();
+}
+
+function rollInitiative(){
+  diceLog('<span class="warn">Rolling for initiative...</span>');
+  dicePlayerCubeEl.classList.add('rolling');
+  diceEnemyCubeEl.classList.add('rolling');
+  let ticks = 0;
+  const spin = setInterval(()=>{
+    dicePlayerCubeEl.textContent = 1+Math.floor(Math.random()*6);
+    diceEnemyCubeEl.textContent  = 1+Math.floor(Math.random()*6);
+    ticks++;
+    if (ticks>=8){ clearInterval(spin); finishInitiativeRoll(); }
+  }, 80);
+}
+
+function finishInitiativeRoll(){
+  if (!diceState || diceState.over) return;
+  const pRoll = 1+Math.floor(Math.random()*6);
+  const eRoll = 1+Math.floor(Math.random()*6);
+  dicePlayerCubeEl.classList.remove('rolling');
+  diceEnemyCubeEl.classList.remove('rolling');
+  dicePlayerCubeEl.textContent = pRoll;
+  diceEnemyCubeEl.textContent  = eRoll;
+  if (pRoll === eRoll){
+    diceLog('Both roll a '+pRoll+' &mdash; rerolling...');
+    setTimeout(rollInitiative, 700);
+    return;
+  }
+  diceState.initiative = pRoll > eRoll ? 'player' : 'enemy';
+  diceLog('You roll <b>'+pRoll+'</b>, '+diceState.cfg.enemyName+' rolls <b>'+eRoll+'</b> &mdash; '+
+    (diceState.initiative==='player' ? '<span class="ok">you seize the initiative.</span>' : '<span class="err">they seize the initiative.</span>'));
+  setTimeout(()=>{
+    if (!diceState || diceState.over) return;
+    dicePlayerCubeEl.textContent = '?';
+    diceEnemyCubeEl.textContent = '?';
+    diceChoicesEl.style.display = 'grid';
+    diceLog('<span class="warn">ROUND '+diceState.round+' &mdash; choose your move.</span>');
+  }, 900);
+}
+
+function pickEnemyMove(){
+  const st = diceState;
+  if (st.cfg.adaptive && st.playerMoveHistory.length && Math.random() < 0.45){
+    /* Reads the player's most-used move so far and plays whatever
+       beats it — only kicks in on DICE DUEL II. */
+    const counts = {};
+    st.playerMoveHistory.forEach(m => counts[m]=(counts[m]||0)+1);
+    const favored = Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];
+    const counterMove = DICE_MOVES.find(m => DICE_BEATS[m]===favored);
+    if (counterMove) return counterMove;
+  }
+  return DICE_MOVES[Math.floor(Math.random()*DICE_MOVES.length)];
+}
+
+diceChoicesEl.querySelectorAll('.dice-choice-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if (!diceState || diceState.resolving || diceState.over) return;
+    playDiceRound(btn.dataset.move);
+  });
+});
+
+function playDiceRound(playerMove){
+  const st = diceState;
+  st.resolving = true;
+  diceChoicesEl.style.display = 'none';
+  st.playerMoveHistory.push(playerMove);
+  const enemyMove = pickEnemyMove();
+
+  dicePlayerCubeEl.innerHTML = DICE_ICON[playerMove];
+  diceEnemyCubeEl.innerHTML  = DICE_ICON[enemyMove];
+
+  let winner;
+  if (playerMove === enemyMove) winner = st.initiative;
+  else if (DICE_BEATS[playerMove] === enemyMove) winner = 'player';
+  else winner = 'enemy';
+
+  setTimeout(()=>{
+    if (playerMove===enemyMove){
+      diceLog('Both play <b>'+DICE_LABEL[playerMove]+'</b> &mdash; clash! '+
+        (winner==='player' ? '<span class="ok">Your initiative wins it.</span>' : '<span class="err">Their initiative wins it.</span>'));
+    } else {
+      diceLog('You: <b>'+DICE_LABEL[playerMove]+'</b> vs '+st.cfg.enemyName+': <b>'+DICE_LABEL[enemyMove]+'</b> &mdash; '+
+        (winner==='player'
+          ? '<span class="ok">'+DICE_LABEL[playerMove]+' beats '+DICE_LABEL[enemyMove]+'. You take the round.</span>'
+          : '<span class="err">'+DICE_LABEL[enemyMove]+' beats '+DICE_LABEL[playerMove]+'. They take the round.</span>'));
+    }
+    if (winner==='player') st.playerWins++; else st.enemyWins++;
+    updateDicePips();
+
+    if (st.playerWins>=2 || st.enemyWins>=2){ endDiceDuel(st.playerWins>st.enemyWins); return; }
+
+    st.round++;
+    updateDiceRoundStat();
+    dicePlayerCubeEl.textContent='?'; diceEnemyCubeEl.textContent='?';
+    st.resolving = false;
+    diceChoicesEl.style.display = 'grid';
+    diceLog('<span class="warn">ROUND '+st.round+' &mdash; choose your move.</span>');
+  }, 650);
+}
+
+function endDiceDuel(playerWon){
+  const st = diceState;
+  st.over = true;
+  diceChoicesEl.style.display = 'none';
+  const cfg = st.cfg;
+  let msg;
+  if (playerWon){
+    const payout = Math.round(cfg.ante * cfg.payoutMult);
+    arcadePoints += payout;
+    saveArcadePoints();
+    updateVendorHud();
+    const isFirstWin = (diceLevelIndex===0 && !diceduel2Unlocked);
+    if (diceLevelIndex===0) unlockDiceduel2();
+    msg = '* Static clears &mdash; you took the pot.<span class="small">WON '+st.playerWins+'-'+st.enemyWins+' &mdash; PAYOUT '+payout+' PTS (NET +'+(payout-cfg.ante)+')</span>';
+    if (isFirstWin) msg += '<span class="small" style="color:var(--bright);">NEW LEVEL UNLOCKED &mdash; DICE DUEL II IN THE MINIGAME MENU</span>';
+  } else {
+    msg = '* The connection drops &mdash; you lost the ante.<span class="small">LOST '+st.enemyWins+'-'+st.playerWins+' &mdash; ANTE '+cfg.ante+' PTS GONE</span>';
+  }
+  msg += '<span class="small">SPACE OR TAP TO RUN IT BACK, OR CLOSE</span>';
+  diceMsgEl.innerHTML = msg;
+  diceMsgEl.classList.add('active');
+}
+
+function diceRetry(){
+  if (!diceState || !diceState.over) return;
+  startDiceDuel(diceLevelIndex);
+}
+diceMsgEl.addEventListener('pointerdown', ()=>{ if(diceOverlay.classList.contains('active')) diceRetry(); });
+
+diceClose.addEventListener('click', ()=>{ closeDiceDuel(); input.focus(); });
+function closeDiceDuel(){
+  if (diceState && !diceState.over && diceState.playerWins===0 && diceState.enemyWins===0){
+    arcadePoints += diceState.cfg.ante;
+    saveArcadePoints();
+    updateVendorHud();
+  }
+  diceOverlay.classList.remove('active');
+  diceState = null;
+  diceMsgEl.classList.remove('active');
+}
+
+document.addEventListener('keydown', e=>{
+  if(!diceOverlay.classList.contains('active') || !diceState) return;
+  if(diceState.over){
+    if(e.key===' '||e.key==='Enter'){ e.preventDefault(); diceRetry(); }
+    return;
+  }
+  if(diceState.resolving || diceChoicesEl.style.display==='none') return;
+  const keyMap = {'1':'attack','2':'defend','3':'counter','4':'magic'};
+  if (keyMap[e.key]) playDiceRound(keyMap[e.key]);
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SIGNAL SYNC — RHYTHM MINIGAME
+   Charts are auto-generated offline (onset detection + tempo
+   estimation on the actual track) and pasted in here as static
+   note data — nothing is analyzed in the browser at runtime.
+   Add a new song by pushing another entry onto rhythmLevels with
+   its own chart, same as the other minigames' levels arrays.
+   ═══════════════════════════════════════════════════════════════ */
+const RHYTHM_LANES = ['up','left','down','right'];
+const RHYTHM_ICONS = {
+  up:    '<path d="M12 4 L20 14 L14.5 14 L14.5 20 L9.5 20 L9.5 14 L4 14 Z"/>',
+  down:  '<path d="M12 20 L4 10 L9.5 10 L9.5 4 L14.5 4 L14.5 10 L20 10 Z"/>',
+  left:  '<path d="M4 12 L14 4 L14 9.5 L20 9.5 L20 14.5 L14 14.5 L14 20 Z"/>',
+  right: '<path d="M20 12 L10 4 L10 9.5 L4 9.5 L4 14.5 L10 14.5 L10 20 Z"/>'
+};
+const RHYTHM_APPROACH_TIME = 1.55;
+const RHYTHM_WIN_PERFECT = 0.07;
+const RHYTHM_WIN_GOOD    = 0.15;
+const RHYTHM_WIN_MISS    = 0.22;
+/* slide (hold + drag-to-lane) tuning */
+const RHYTHM_SLIDE_START_WINDOW = 0.20; /* how early/late the start lane can be engaged */
+const RHYTHM_SLIDE_END_PERFECT  = 0.10; /* end-lane engaged within this of the target time */
+const RHYTHM_SLIDE_END_GOOD     = 0.22;
+const RHYTHM_LANE_X = { up:12.5, left:37.5, down:62.5, right:87.5 }; /* % across stage */
+const RHYTHM_LANE_ADJ = { up:['left'], left:['up','down'], down:['left','right'], right:['down'] };
+
+const rhythmLevels = [
+  { label:'SIGNAL SYNC', title:"HELLO KITTY'S WHIMSICAL", points:1,
+    url:'https://files.catbox.moe/8pegsn.mp3',
+    chart: {"title": "Hello Kitty's Whimsical", "bpm": 99.38, "offset": 0, "duration": 126.84, "level": 1, "notes": [{"time": 1.509, "lane": "left"}, {"time": 2.113, "lane": "down"}, {"time": 3.32, "lane": "up"}, {"time": 4.528, "lane": "down"}, {"time": 5.132, "lane": "right"}, {"time": 5.735, "lane": "left"}, {"time": 6.943, "lane": "down"}, {"time": 7.848, "lane": "left"}, {"time": 9.358, "lane": "down"}, {"time": 10.263, "lane": "right"}, {"time": 10.867, "lane": "up"}, {"time": 11.471, "lane": "left"}, {"time": 12.678, "lane": "up"}, {"time": 13.282, "lane": "left"}, {"time": 13.886, "lane": "up"}, {"time": 15.093, "lane": "right"}, {"time": 16.3, "lane": "left"}, {"time": 16.904, "lane": "up"}, {"time": 17.659, "lane": "left"}, {"time": 18.866, "lane": "up"}, {"time": 19.47, "lane": "left"}, {"time": 20.074, "lane": "right"}, {"time": 21.281, "lane": "up"}, {"time": 22.489, "lane": "left"}, {"time": 23.092, "lane": "right"}, {"time": 23.696, "lane": "down"}, {"time": 24.903, "lane": "right"}, {"time": 25.507, "lane": "down"}, {"time": 26.111, "lane": "up"}, {"time": 27.318, "lane": "down"}, {"time": 28.224, "lane": "right"}, {"time": 29.129, "lane": "down"}, {"time": 29.733, "lane": "left"}, {"time": 30.941, "lane": "up"}, {"time": 31.544, "lane": "right"}, {"time": 32.148, "lane": "left"}, {"time": 33.355, "lane": "up"}, {"time": 33.959, "lane": "right"}, {"time": 34.563, "lane": "up"}, {"time": 35.77, "lane": "down"}, {"time": 36.374, "lane": "left"}, {"time": 36.978, "lane": "down"}, {"time": 38.185, "lane": "left"}, {"time": 39.393, "lane": "down"}, {"time": 39.996, "lane": "right"}, {"time": 40.6, "lane": "down"}, {"time": 41.808, "lane": "right"}, {"time": 42.411, "lane": "up"}, {"time": 43.015, "lane": "down"}, {"time": 44.222, "lane": "up"}, {"time": 44.826, "lane": "right"}, {"time": 45.43, "lane": "up"}, {"time": 48.448, "lane": "left"}, {"time": 49.354, "lane": "right"}, {"time": 50.26, "lane": "down"}, {"time": 50.561, "lane": "right"}, {"time": 51.92, "lane": "up"}, {"time": 52.674, "lane": "down"}, {"time": 53.127, "lane": "right"}, {"time": 54.335, "lane": "up"}, {"time": 55.542, "lane": "left"}, {"time": 55.844, "lane": "right"}, {"time": 57.957, "lane": "up"}, {"time": 58.863, "lane": "down"}, {"time": 59.466, "lane": "right"}, {"time": 60.07, "lane": "up"}, {"time": 61.277, "lane": "left"}, {"time": 61.881, "lane": "right"}, {"time": 62.485, "lane": "left"}, {"time": 63.692, "lane": "right"}, {"time": 64.9, "lane": "left"}, {"time": 65.503, "lane": "down"}, {"time": 66.107, "lane": "left"}, {"time": 67.315, "lane": "right"}, {"time": 68.22, "lane": "left"}, {"time": 68.824, "lane": "up"}, {"time": 69.73, "lane": "left"}, {"time": 70.333, "lane": "right"}, {"time": 70.937, "lane": "down"}, {"time": 72.144, "lane": "left"}, {"time": 73.352, "lane": "up"}, {"time": 73.956, "lane": "left"}, {"time": 74.559, "lane": "right"}, {"time": 75.163, "lane": "up"}, {"time": 76.672, "lane": "left"}, {"time": 77.578, "lane": "up"}, {"time": 79.993, "lane": "right"}, {"time": 81.2, "lane": "up"}, {"time": 87.539, "lane": "left"}, {"time": 88.143, "lane": "down"}, {"time": 89.501, "lane": "up"}, {"time": 90.105, "lane": "right"}, {"time": 90.709, "lane": "up"}, {"time": 91.916, "lane": "down"}, {"time": 92.52, "lane": "left"}, {"time": 93.124, "lane": "right"}, {"time": 94.633, "lane": "left"}, {"time": 95.237, "lane": "up"}, {"time": 95.84, "lane": "right"}, {"time": 96.444, "lane": "down"}, {"time": 97.953, "lane": "up"}, {"time": 99.161, "lane": "right"}, {"time": 100.368, "lane": "up"}, {"time": 101.576, "lane": "down"}, {"time": 102.783, "lane": "up"}, {"time": 103.991, "lane": "left"}, {"time": 104.292, "lane": "up"}, {"time": 106.405, "lane": "down"}, {"time": 107.311, "lane": "up"}, {"time": 107.915, "lane": "down"}, {"time": 108.518, "lane": "up"}, {"time": 109.726, "lane": "right"}, {"time": 110.33, "lane": "up"}, {"time": 110.933, "lane": "right"}, {"time": 112.141, "lane": "left"}, {"time": 113.348, "lane": "up"}, {"time": 113.952, "lane": "left"}, {"time": 114.556, "lane": "up"}, {"time": 115.763, "lane": "down"}, {"time": 116.669, "lane": "right"}, {"time": 117.272, "lane": "up"}, {"time": 118.178, "lane": "right"}, {"time": 118.782, "lane": "up"}, {"time": 119.385, "lane": "right"}, {"time": 120.744, "lane": "left"}, {"time": 121.951, "lane": "up"}, {"time": 122.555, "lane": "down"}, {"time": 123.159, "lane": "right"}, {"time": 123.762, "lane": "up"}, {"time": 125.574, "lane": "right"}]} },
+  { label:'SIGNAL SYNC II', title:"THE LAST LIGHT", points:2,
+    url:'https://files.catbox.moe/vipmfe.mp3',
+    chart: {"title": "The Last Light", "bpm": 136.4, "offset": 0, "duration": 152.04, "level": 2, "notes": [{"time": 1.716, "lane": "right", "type": "tap"}, {"time": 2.156, "lane": "down", "type": "tap"}, {"time": 3.035, "lane": "right", "type": "tap"}, {"time": 3.695, "lane": "up", "lane2": "left", "dur": 0.44, "type": "slide"}, {"time": 4.795, "lane": "right", "type": "tap"}, {"time": 5.675, "lane": "right", "type": "tap"}, {"time": 6.554, "lane": "up", "type": "tap"}, {"time": 7.434, "lane": "right", "type": "tap"}, {"time": 8.314, "lane": "up", "type": "tap"}, {"time": 9.194, "lane": "left", "type": "tap"}, {"time": 9.853, "lane": "up", "lane2": "left", "dur": 0.66, "type": "slide"}, {"time": 11.393, "lane": "up", "type": "tap"}, {"time": 12.053, "lane": "down", "type": "tap"}, {"time": 13.153, "lane": "left", "type": "tap"}, {"time": 13.592, "lane": "right", "type": "tap"}, {"time": 14.472, "lane": "up", "type": "tap"}, {"time": 15.352, "lane": "down", "type": "tap"}, {"time": 16.232, "lane": "up", "type": "tap"}, {"time": 17.112, "lane": "down", "type": "tap"}, {"time": 17.991, "lane": "right", "type": "tap"}, {"time": 18.431, "lane": "down", "lane2": "left", "dur": 0.44, "type": "slide"}, {"time": 19.751, "lane": "left", "type": "tap"}, {"time": 20.631, "lane": "up", "type": "tap"}, {"time": 21.07, "lane": "right", "type": "tap"}, {"time": 22.39, "lane": "down", "type": "tap"}, {"time": 22.83, "lane": "up", "type": "tap"}, {"time": 23.71, "lane": "down", "type": "tap"}, {"time": 24.15, "lane": "down", "type": "tap"}, {"time": 25.029, "lane": "up", "type": "tap"}, {"time": 25.469, "lane": "down", "type": "tap"}, {"time": 26.129, "lane": "up", "type": "tap"}, {"time": 26.789, "lane": "right", "type": "tap"}, {"time": 27.449, "lane": "left", "lane2": "up", "dur": 0.66, "type": "slide"}, {"time": 28.548, "lane": "right", "type": "tap"}, {"time": 28.988, "lane": "down", "type": "tap"}, {"time": 29.648, "lane": "left", "type": "tap"}, {"time": 30.308, "lane": "right", "type": "tap"}, {"time": 30.748, "lane": "left", "type": "tap"}, {"time": 31.188, "lane": "left", "type": "tap"}, {"time": 32.068, "lane": "right", "type": "tap"}, {"time": 32.947, "lane": "up", "type": "tap"}, {"time": 33.827, "lane": "right", "type": "tap"}, {"time": 34.707, "lane": "down", "type": "tap"}, {"time": 35.367, "lane": "right", "type": "tap"}, {"time": 36.466, "lane": "down", "type": "tap"}, {"time": 37.346, "lane": "right", "type": "tap"}, {"time": 38.226, "lane": "right", "lane2": "down", "dur": 0.44, "type": "slide"}, {"time": 39.546, "lane": "up", "type": "tap"}, {"time": 40.205, "lane": "right", "type": "tap"}, {"time": 40.865, "lane": "up", "type": "tap"}, {"time": 42.185, "lane": "right", "type": "tap"}, {"time": 43.065, "lane": "up", "type": "tap"}, {"time": 44.384, "lane": "down", "type": "tap"}, {"time": 44.824, "lane": "left", "lane2": "up", "dur": 0.66, "type": "slide"}, {"time": 46.144, "lane": "down", "type": "tap"}, {"time": 47.244, "lane": "up", "type": "tap"}, {"time": 47.903, "lane": "down", "type": "tap"}, {"time": 48.783, "lane": "right", "type": "tap"}, {"time": 49.443, "lane": "right", "type": "tap"}, {"time": 50.103, "lane": "down", "lane2": "right", "dur": 0.44, "type": "slide"}, {"time": 51.422, "lane": "up", "type": "tap"}, {"time": 51.862, "lane": "left", "type": "tap"}, {"time": 52.522, "lane": "right", "type": "tap"}, {"time": 53.182, "lane": "left", "type": "tap"}, {"time": 54.282, "lane": "right", "type": "tap"}, {"time": 54.941, "lane": "down", "type": "tap"}, {"time": 55.821, "lane": "up", "lane2": "left", "dur": 0.44, "type": "slide"}, {"time": 57.141, "lane": "right", "type": "tap"}, {"time": 57.581, "lane": "left", "type": "tap"}, {"time": 58.461, "lane": "down", "type": "tap"}, {"time": 59.34, "lane": "right", "type": "tap"}, {"time": 60.22, "lane": "left", "type": "tap"}, {"time": 60.66, "lane": "down", "type": "tap"}, {"time": 61.32, "lane": "left", "type": "tap"}, {"time": 61.98, "lane": "up", "type": "tap"}, {"time": 62.859, "lane": "left", "lane2": "up", "dur": 0.44, "type": "slide"}, {"time": 63.959, "lane": "right", "type": "tap"}, {"time": 65.059, "lane": "up", "type": "tap"}, {"time": 65.719, "lane": "left", "type": "tap"}, {"time": 66.818, "lane": "right", "type": "tap"}, {"time": 67.698, "lane": "left", "type": "tap"}, {"time": 68.578, "lane": "left", "lane2": "up", "dur": 0.66, "type": "slide"}, {"time": 70.337, "lane": "down", "type": "tap"}, {"time": 71.217, "lane": "right", "type": "tap"}, {"time": 71.877, "lane": "up", "type": "tap"}, {"time": 72.537, "lane": "down", "type": "tap"}, {"time": 73.417, "lane": "down", "type": "tap"}, {"time": 74.296, "lane": "right", "type": "tap"}, {"time": 75.176, "lane": "left", "type": "tap"}, {"time": 76.056, "lane": "down", "type": "tap"}, {"time": 76.936, "lane": "right", "type": "tap"}, {"time": 77.815, "lane": "left", "type": "tap"}, {"time": 78.695, "lane": "right", "type": "tap"}, {"time": 79.575, "lane": "down", "type": "tap"}, {"time": 80.455, "lane": "right", "type": "tap"}, {"time": 81.334, "lane": "left", "type": "tap"}, {"time": 82.214, "lane": "down", "type": "tap"}, {"time": 83.094, "lane": "left", "type": "tap"}, {"time": 84.194, "lane": "up", "lane2": "left", "dur": 0.659, "type": "slide"}, {"time": 85.733, "lane": "up", "type": "tap"}, {"time": 86.613, "lane": "left", "type": "tap"}, {"time": 87.493, "lane": "right", "type": "tap"}, {"time": 88.373, "lane": "right", "type": "tap"}, {"time": 89.252, "lane": "down", "type": "tap"}, {"time": 90.132, "lane": "down", "type": "tap"}, {"time": 91.012, "lane": "right", "type": "tap"}, {"time": 91.892, "lane": "left", "type": "tap"}, {"time": 92.991, "lane": "up", "type": "tap"}, {"time": 93.871, "lane": "right", "lane2": "down", "dur": 0.44, "type": "slide"}, {"time": 94.971, "lane": "down", "type": "tap"}, {"time": 95.631, "lane": "up", "type": "tap"}, {"time": 96.51, "lane": "right", "type": "tap"}, {"time": 97.61, "lane": "up", "type": "tap"}, {"time": 98.49, "lane": "up", "type": "tap"}, {"time": 99.37, "lane": "right", "type": "tap"}, {"time": 100.029, "lane": "left", "type": "tap"}, {"time": 100.689, "lane": "down", "lane2": "right", "dur": 0.66, "type": "slide"}, {"time": 102.229, "lane": "right", "type": "tap"}, {"time": 102.889, "lane": "up", "type": "tap"}, {"time": 103.548, "lane": "down", "type": "tap"}, {"time": 104.648, "lane": "down", "type": "tap"}, {"time": 105.308, "lane": "right", "type": "tap"}, {"time": 106.408, "lane": "right", "lane2": "down", "dur": 0.66, "type": "slide"}, {"time": 107.947, "lane": "up", "type": "tap"}, {"time": 108.827, "lane": "down", "type": "tap"}, {"time": 109.707, "lane": "up", "type": "tap"}, {"time": 110.807, "lane": "down", "type": "tap"}, {"time": 111.466, "lane": "left", "type": "tap"}, {"time": 112.126, "lane": "right", "lane2": "down", "dur": 0.66, "type": "slide"}, {"time": 113.446, "lane": "right", "type": "tap"}, {"time": 114.546, "lane": "up", "type": "tap"}, {"time": 115.205, "lane": "right", "type": "tap"}, {"time": 115.865, "lane": "right", "type": "tap"}, {"time": 116.965, "lane": "left", "type": "tap"}, {"time": 117.405, "lane": "right", "type": "tap"}, {"time": 118.065, "lane": "left", "type": "tap"}, {"time": 118.724, "lane": "right", "type": "tap"}, {"time": 119.384, "lane": "down", "lane2": "left", "dur": 0.66, "type": "slide"}, {"time": 120.924, "lane": "right", "type": "tap"}, {"time": 121.804, "lane": "down", "type": "tap"}, {"time": 122.683, "lane": "right", "type": "tap"}, {"time": 123.343, "lane": "up", "type": "tap"}, {"time": 124.003, "lane": "down", "type": "tap"}, {"time": 124.663, "lane": "right", "type": "tap"}, {"time": 125.323, "lane": "down", "type": "tap"}, {"time": 126.202, "lane": "down", "type": "tap"}, {"time": 127.082, "lane": "up", "type": "tap"}, {"time": 127.962, "lane": "right", "type": "tap"}, {"time": 128.842, "lane": "down", "type": "tap"}, {"time": 129.502, "lane": "left", "type": "tap"}, {"time": 130.161, "lane": "right", "type": "tap"}, {"time": 131.041, "lane": "down", "type": "tap"}, {"time": 131.921, "lane": "left", "type": "tap"}, {"time": 133.021, "lane": "down", "type": "tap"}, {"time": 133.9, "lane": "right", "lane2": "down", "dur": 0.66, "type": "slide"}, {"time": 135.44, "lane": "up", "type": "tap"}, {"time": 136.1, "lane": "down", "type": "tap"}, {"time": 136.54, "lane": "up", "type": "tap"}, {"time": 137.2, "lane": "left", "type": "tap"}, {"time": 138.079, "lane": "up", "type": "tap"}, {"time": 138.959, "lane": "left", "type": "tap"}, {"time": 139.839, "lane": "right", "type": "tap"}, {"time": 141.158, "lane": "down", "type": "tap"}, {"time": 141.818, "lane": "right", "type": "tap"}, {"time": 142.478, "lane": "left", "type": "tap"}, {"time": 143.358, "lane": "down", "type": "tap"}, {"time": 144.018, "lane": "right", "type": "tap"}, {"time": 144.678, "lane": "down", "lane2": "left", "dur": 0.659, "type": "slide"}, {"time": 145.997, "lane": "up", "type": "tap"}, {"time": 147.097, "lane": "down", "type": "tap"}, {"time": 147.757, "lane": "left", "type": "tap"}, {"time": 148.417, "lane": "left", "type": "tap"}]} },
+];
+
+let rhythmLevelIndex = 0, rhythmState = null, rhythmAudio = null, rhythmRAF = null;
+let rhythmMusicWasPlaying = false;
+
+const rhythmOverlay      = document.getElementById('rhythmOverlay');
+const rhythmTitleEl      = document.getElementById('rhythmTitle');
+const rhythmScoreStatEl  = document.getElementById('rhythmScoreStat');
+const rhythmComboStatEl  = document.getElementById('rhythmComboStat');
+const rhythmAccStatEl    = document.getElementById('rhythmAccStat');
+const rhythmClose        = document.getElementById('rhythmClose');
+const rhythmStage        = document.getElementById('rhythmStage');
+const rhythmMsgEl        = document.getElementById('rhythmMsg');
+const rhythmTouchZonesEl = document.getElementById('rhythmTouchZones');
+const rhythmSlideLayerEl = document.getElementById('rhythmSlideLayer');
+const rhythmHintEl       = document.getElementById('rhythmHint');
+
+/* which lanes are currently physically held down, via keyboard or touch/pointer */
+const rhythmHeldKeys = new Set();
+const rhythmHeldTouchLanes = new Set();
+const rhythmPointerLanes = new Map(); /* pointerId -> lane currently under that pointer */
+function rhythmIsLaneHeld(lane){ return rhythmHeldKeys.has(lane) || rhythmHeldTouchLanes.has(lane); }
+function rhythmRecomputeHeldTouchLanes(){
+  rhythmHeldTouchLanes.clear();
+  for (const lane of rhythmPointerLanes.values()) rhythmHeldTouchLanes.add(lane);
+}
+function rhythmLaneFromClientX(clientX){
+  const rect = rhythmStage.getBoundingClientRect();
+  const rel = (clientX - rect.left) / rect.width;
+  const idx = Math.min(3, Math.max(0, Math.floor(rel * 4)));
+  return RHYTHM_LANES[idx];
+}
+
+const rhythmLaneEls = {}, rhythmReceptorEls = {};
+RHYTHM_LANES.forEach(l => {
+  const laneEl = rhythmStage.querySelector('.rhythm-lane[data-lane="'+l+'"]');
+  rhythmLaneEls[l] = laneEl;
+  const r = document.createElement('div');
+  r.className = 'rhythm-receptor';
+  r.innerHTML = '<svg viewBox="0 0 24 24">'+RHYTHM_ICONS[l]+'</svg>';
+  laneEl.appendChild(r);
+  rhythmReceptorEls[l] = r;
+});
+
+function rhythmHitLineY(){
+  return rhythmStage.clientHeight - 96;
+}
+
+function rhythmBuildNotes(cfg){
+  return cfg.chart.notes.filter(n => !n.type || n.type === 'tap').map(n => {
+    const el = document.createElement('div');
+    el.className = 'rhythm-note';
+    el.innerHTML = '<svg viewBox="0 0 24 24">'+RHYTHM_ICONS[n.lane]+'</svg>';
+    rhythmLaneEls[n.lane].appendChild(el);
+    return { time:n.time, lane:n.lane, el, hit:false, judged:false };
+  });
+}
+
+function rhythmClearNotes(){
+  if (rhythmState){
+    rhythmState.notes.forEach(n => n.el.remove());
+  }
+}
+
+/* Slide notes: hold the start lane, then move the hold over to the end
+   lane (adjacent column) before the note's end time. Works via held
+   arrow keys or a dragged/moved touch point across the touchzones. */
+function rhythmBuildSlides(cfg){
+  return cfg.chart.notes.filter(n => n.type === 'slide').map(n => {
+    const el = document.createElement('div');
+    el.className = 'rhythm-slide';
+    const bar = document.createElement('div');
+    bar.className = 'rhythm-slide-bar';
+    const startNode = document.createElement('div');
+    startNode.className = 'rhythm-slide-node start';
+    startNode.innerHTML = '<svg viewBox="0 0 24 24">'+RHYTHM_ICONS[n.lane]+'</svg>';
+    const endNode = document.createElement('div');
+    endNode.className = 'rhythm-slide-node end';
+    endNode.innerHTML = '<svg viewBox="0 0 24 24">'+RHYTHM_ICONS[n.lane2]+'</svg>';
+    el.appendChild(bar); el.appendChild(startNode); el.appendChild(endNode);
+    rhythmSlideLayerEl.appendChild(el);
+    return {
+      time:n.time, endTime:n.time + n.dur, lane:n.lane, lane2:n.lane2,
+      el, bar, startNode, endNode,
+      startEngaged:false, endEngageTime:null, judged:false, hit:false
+    };
+  });
+}
+
+function rhythmClearSlides(){
+  if (rhythmState){
+    rhythmState.slides.forEach(s => s.el.remove());
+  }
+}
+
+function rhythmUpdateHud(){
+  const st = rhythmState;
+  rhythmScoreStatEl.textContent = 'SCORE: '+st.score;
+  const total = st.counts.perfect + st.counts.good + st.counts.miss;
+  const acc = total ? Math.round(((st.counts.perfect*1 + st.counts.good*0.6) / total) * 100) : 100;
+  rhythmAccStatEl.textContent = 'ACC: '+acc+'%';
+  rhythmComboStatEl.textContent = st.combo+' COMBO';
+  rhythmComboStatEl.classList.toggle('pulse', st.combo >= 2);
+}
+
+function rhythmSpawnJudgement(lane, text, cls){
+  const el = document.createElement('div');
+  el.className = 'rhythm-judge show '+cls;
+  el.textContent = text;
+  el.style.top = (rhythmHitLineY() - 38) + 'px';
+  rhythmLaneEls[lane].appendChild(el);
+  setTimeout(()=> el.remove(), 520);
+}
+
+function rhythmFlashReceptor(lane){
+  const r = rhythmReceptorEls[lane];
+  r.classList.add('active');
+  setTimeout(()=> r.classList.remove('active'), 90);
+}
+
+function rhythmJudge(note, delta){
+  const st = rhythmState;
+  const abs = Math.abs(delta);
+  note.judged = true;
+  note.hit = true;
+  if (abs <= RHYTHM_WIN_PERFECT){
+    st.counts.perfect++; st.score += 100; st.combo++;
+    rhythmSpawnJudgement(note.lane, 'PERFECT', 'perfect');
+  } else if (abs <= RHYTHM_WIN_GOOD){
+    st.counts.good++; st.score += 50; st.combo++;
+    rhythmSpawnJudgement(note.lane, 'GOOD', 'good');
+  } else {
+    st.counts.miss++; st.combo = 0;
+    rhythmSpawnJudgement(note.lane, 'MISS', 'miss');
+  }
+  st.maxCombo = Math.max(st.maxCombo, st.combo);
+  st.judged++;
+  note.el.classList.add('hit');
+  rhythmFlashReceptor(note.lane);
+  rhythmUpdateHud();
+  setTimeout(()=> note.el.remove(), 160);
+  if (st.judged >= st.totalNotes) setTimeout(rhythmEndRun, 900);
+}
+
+function rhythmJudgeSlide(note, success, delta){
+  const st = rhythmState;
+  note.judged = true;
+  note.hit = true;
+  if (success){
+    const abs = Math.abs(delta);
+    if (abs <= RHYTHM_SLIDE_END_PERFECT){
+      st.counts.perfect++; st.score += 150; st.combo++;
+      rhythmSpawnJudgement(note.lane2, 'PERFECT', 'perfect');
+    } else {
+      st.counts.good++; st.score += 80; st.combo++;
+      rhythmSpawnJudgement(note.lane2, 'GOOD', 'good');
+    }
+  } else {
+    st.counts.miss++; st.combo = 0;
+    note.startNode.classList.add('miss-flag');
+    note.endNode.classList.add('miss-flag');
+    rhythmSpawnJudgement(note.lane2, 'MISS', 'miss');
+  }
+  st.maxCombo = Math.max(st.maxCombo, st.combo);
+  st.judged++;
+  note.el.classList.add('rhythm-slide-hit');
+  rhythmFlashReceptor(note.lane2);
+  rhythmUpdateHud();
+  setTimeout(()=> note.el.remove(), 160);
+  if (st.judged >= st.totalNotes) setTimeout(rhythmEndRun, 900);
+}
+
+function rhythmTryHit(lane){
+  const st = rhythmState;
+  if (!st || st.phase !== 'playing') return;
+  rhythmFlashReceptor(lane);
+  const t = rhythmAudio.currentTime;
+  let best = null, bestAbs = Infinity;
+  for (const n of st.notes){
+    if (n.judged || n.lane !== lane) continue;
+    const d = n.time - t;
+    if (Math.abs(d) > RHYTHM_WIN_MISS) continue;
+    if (Math.abs(d) < bestAbs){ bestAbs = Math.abs(d); best = n; }
+  }
+  if (best) rhythmJudge(best, best.time - t);
+  /* no note nearby -> silent tap, no penalty, keeps level 1 forgiving */
+}
+
+function rhythmFrame(){
+  const st = rhythmState;
+  if (!st || st.phase !== 'playing') return;
+  const t = rhythmAudio.currentTime;
+  const hitY = rhythmHitLineY();
+  for (const n of st.notes){
+    if (n.hit) continue;
+    const dt = n.time - t;
+    const progress = 1 - (dt / RHYTHM_APPROACH_TIME);
+    if (progress < -0.05 || progress > 1.4){ n.el.style.display = 'none'; continue; }
+    n.el.style.display = 'flex';
+    n.el.style.transform = 'translateY(' + (progress * hitY - 32) + 'px)';
+    if (!n.judged && dt < -RHYTHM_WIN_MISS) rhythmJudge(n, dt);
+  }
+
+  const stageW = rhythmStage.clientWidth;
+  for (const s of st.slides){
+    if (s.hit) continue;
+    const dt1 = s.time - t;
+    const dt2 = s.endTime - t;
+    const progress1 = 1 - (dt1 / RHYTHM_APPROACH_TIME);
+    const progress2 = 1 - (dt2 / RHYTHM_APPROACH_TIME);
+    if (progress1 < -0.05 && progress2 < -0.05){ s.el.style.display = 'none'; continue; }
+    if (progress1 > 1.4 && progress2 > 1.4){ s.el.style.display = 'none'; continue; }
+    s.el.style.display = 'block';
+    const x1 = RHYTHM_LANE_X[s.lane], x2 = RHYTHM_LANE_X[s.lane2];
+    const y1 = progress1 * hitY, y2 = progress2 * hitY;
+    s.startNode.style.display = 'flex';
+    s.startNode.style.left = x1 + '%';
+    s.startNode.style.top = y1 + 'px';
+    s.endNode.style.display = 'flex';
+    s.endNode.style.left = x2 + '%';
+    s.endNode.style.top = y2 + 'px';
+    const px1 = x1/100*stageW, px2 = x2/100*stageW;
+    const dx = px2-px1, dy = y2-y1;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    const angle = Math.atan2(dy, dx) * 180/Math.PI;
+    s.bar.style.display = 'block';
+    s.bar.style.left = px1 + 'px';
+    s.bar.style.top = y1 + 'px';
+    s.bar.style.width = len + 'px';
+    s.bar.style.transform = 'rotate(' + angle + 'deg)';
+
+    if (!s.startEngaged && t >= s.time - RHYTHM_SLIDE_START_WINDOW && rhythmIsLaneHeld(s.lane)){
+      s.startEngaged = true;
+      rhythmFlashReceptor(s.lane);
+    }
+    if (s.startEngaged && s.endEngageTime === null && rhythmIsLaneHeld(s.lane2)){
+      s.endEngageTime = t;
+      rhythmFlashReceptor(s.lane2);
+    }
+    s.startNode.classList.toggle('engaged', s.startEngaged);
+    s.bar.classList.toggle('engaged', s.startEngaged);
+    s.endNode.classList.toggle('engaged', s.endEngageTime !== null);
+
+    if (!s.startEngaged && t > s.time + RHYTHM_SLIDE_START_WINDOW){
+      rhythmJudgeSlide(s, false, 0);
+    } else if (s.startEngaged && t > s.endTime + RHYTHM_SLIDE_END_GOOD){
+      if (s.endEngageTime !== null) rhythmJudgeSlide(s, true, s.endEngageTime - s.endTime);
+      else rhythmJudgeSlide(s, false, 0);
+    }
+  }
+  rhythmRAF = requestAnimationFrame(rhythmFrame);
+}
+
+function rhythmShowIntro(cfg){
+  const hasSlides = cfg.chart.notes.some(n => n.type === 'slide');
+  rhythmMsgEl.innerHTML =
+    '<span>'+cfg.title+'</span>'+
+    '<span class="small">ARROW KEYS ON DESKTOP &mdash; TAP THE FOUR LANES ON MOBILE</span>'+
+    '<span class="small">HIT THE MARKER AS EACH ARROW CROSSES THE LINE</span>'+
+    (hasSlides ? '<span class="small">DASHED PAIRS: HOLD THE FIRST ARROW, THEN SLIDE OVER TO THE SECOND BEFORE IT LANDS</span>' : '')+
+    '<span class="small">SPACE OR TAP TO START</span>';
+  rhythmMsgEl.classList.add('active');
+  rhythmHintEl.textContent = hasSlides
+    ? 'ARROW KEYS ON DESKTOP \u2014 TAP OR HOLD+DRAG THE LANES ON MOBILE'
+    : 'ARROW KEYS ON DESKTOP \u2014 TAP THE FOUR LANES ON MOBILE';
+}
+
+function rhythmStartCountdown(){
+  rhythmMsgEl.classList.add('active');
+  let n = 3;
+  rhythmMsgEl.innerHTML = '<span class="rhythm-countdown">'+n+'</span>';
+  const iv = setInterval(()=>{
+    n--;
+    if (n > 0){
+      rhythmMsgEl.innerHTML = '<span class="rhythm-countdown">'+n+'</span>';
+    } else {
+      clearInterval(iv);
+      rhythmMsgEl.classList.remove('active');
+      rhythmState.phase = 'playing';
+      rhythmTouchZonesEl.style.pointerEvents = 'auto';
+      rhythmAudio.currentTime = 0;
+      rhythmAudio.play().catch(()=>{});
+      rhythmRAF = requestAnimationFrame(rhythmFrame);
+    }
+  }, 800);
+}
+
+function rhythmAdvance(){
+  const st = rhythmState;
+  if (!st || st.phase === 'playing' || st.phase === 'countdown') return;
+  if (st.phase === 'idle'){
+    st.phase = 'countdown';
+    // prime playback inside the gesture so the delayed play() after the
+    // countdown isn't blocked by mobile autoplay policies
+    rhythmAudio.play().then(()=>{ rhythmAudio.pause(); rhythmAudio.currentTime = 0; }).catch(()=>{});
+    rhythmStartCountdown();
+  } else if (st.phase === 'over'){
+    startRhythm(rhythmLevelIndex);
+  }
+}
+
+function rhythmEndRun(){
+  const st = rhythmState;
+  st.phase = 'over';
+  cancelAnimationFrame(rhythmRAF);
+  rhythmTouchZonesEl.style.pointerEvents = 'none';
+  rhythmHeldKeys.clear();
+  rhythmHeldTouchLanes.clear();
+  rhythmPointerLanes.clear();
+  rhythmAudio.pause();
+  const total = st.counts.perfect + st.counts.good + st.counts.miss;
+  const acc = total ? Math.round(((st.counts.perfect*1 + st.counts.good*0.6) / total) * 100) : 100;
+  let grade = 'C';
+  if (acc >= 97) grade = 'S'; else if (acc >= 90) grade = 'A'; else if (acc >= 80) grade = 'B';
+  const isFirstRhythmClear = (rhythmLevelIndex === 0 && !rhythm2Unlocked);
+  if (rhythmLevelIndex === 0) unlockRhythm2();
+  const earnedPoints = awardPoints(st.cfg.points);
+  let msg = '<span class="rhythm-grade">'+grade+'</span>'+
+    '<span class="small">SCORE '+st.score+' &mdash; ACC '+acc+'% &mdash; MAX COMBO '+st.maxCombo+'</span>'+
+    '<span class="small">PERFECT '+st.counts.perfect+' &middot; GOOD '+st.counts.good+' &middot; MISS '+st.counts.miss+'</span>';
+  msg += pointsMsg(earnedPoints);
+  if (isFirstRhythmClear) msg += '<span class="small" style="color:var(--bright);">NEW LEVEL UNLOCKED — SIGNAL SYNC II IN THE MINIGAME MENU</span>';
+  msg += '<span class="small">SPACE OR TAP TO RUN IT BACK, OR CLOSE</span>';
+  rhythmMsgEl.innerHTML = msg;
+  rhythmMsgEl.classList.add('active');
+}
+
+function startRhythm(levelIndex){
+  rhythmLevelIndex = levelIndex || 0;
+  const cfg = rhythmLevels[rhythmLevelIndex];
+  rhythmTitleEl.textContent = cfg.label;
+
+  rhythmClearNotes();
+  rhythmClearSlides();
+  if (rhythmAudio){ rhythmAudio.pause(); rhythmAudio.src = ''; }
+  rhythmAudio = new Audio(cfg.url);
+  rhythmAudio.preload = 'auto';
+  rhythmAudio.volume = 0.85;
+
+  rhythmMusicWasPlaying = !!(audioEl && !audioEl.paused);
+  if (audioEl && !audioEl.paused) audioEl.pause(); /* don't overlap with the music player */
+
+  rhythmHeldKeys.clear();
+  rhythmHeldTouchLanes.clear();
+  rhythmPointerLanes.clear();
+
+  const notes = rhythmBuildNotes(cfg);
+  const slides = rhythmBuildSlides(cfg);
+  rhythmState = {
+    cfg, phase:'idle', score:0, combo:0, maxCombo:0, judged:0,
+    counts:{perfect:0, good:0, miss:0},
+    notes, slides, totalNotes: notes.length + slides.length
+  };
+  rhythmUpdateHud();
+  rhythmTouchZonesEl.style.pointerEvents = 'none';
+  rhythmOverlay.classList.add('active');
+  rhythmShowIntro(cfg);
+}
+
+function closeRhythm(){
+  cancelAnimationFrame(rhythmRAF);
+  if (rhythmAudio) rhythmAudio.pause();
+  rhythmClearNotes();
+  rhythmClearSlides();
+  rhythmHeldKeys.clear();
+  rhythmHeldTouchLanes.clear();
+  rhythmPointerLanes.clear();
+  rhythmOverlay.classList.remove('active');
+  rhythmMsgEl.classList.remove('active');
+  rhythmState = null;
+  if (rhythmMusicWasPlaying && audioEl){ audioEl.play().catch(()=>{}); }
+}
+
+rhythmClose.addEventListener('click', ()=>{ closeRhythm(); input.focus(); });
+rhythmMsgEl.addEventListener('pointerdown', ()=>{ if (rhythmOverlay.classList.contains('active')) rhythmAdvance(); });
+
+/* Touch/pointer handling: a plain tap still registers a normal hit, but we
+   also track which lane each pointer is currently over so a finger can be
+   held down and dragged across lanes to satisfy a slide note. */
+rhythmTouchZonesEl.addEventListener('pointerdown', e=>{
+  e.preventDefault();
+  const lane = e.target && e.target.dataset && e.target.dataset.lane
+    ? e.target.dataset.lane : rhythmLaneFromClientX(e.clientX);
+  rhythmPointerLanes.set(e.pointerId, lane);
+  rhythmRecomputeHeldTouchLanes();
+  rhythmTryHit(lane);
+  try { rhythmTouchZonesEl.setPointerCapture(e.pointerId); } catch(_){}
+});
+rhythmTouchZonesEl.addEventListener('pointermove', e=>{
+  if (!rhythmPointerLanes.has(e.pointerId)) return;
+  const oldLane = rhythmPointerLanes.get(e.pointerId);
+  const newLane = rhythmLaneFromClientX(e.clientX);
+  if (newLane !== oldLane){
+    rhythmPointerLanes.set(e.pointerId, newLane);
+    rhythmRecomputeHeldTouchLanes();
+    rhythmFlashReceptor(newLane);
+  }
+});
+function rhythmEndPointer(e){
+  rhythmPointerLanes.delete(e.pointerId);
+  rhythmRecomputeHeldTouchLanes();
+}
+rhythmTouchZonesEl.addEventListener('pointerup', rhythmEndPointer);
+rhythmTouchZonesEl.addEventListener('pointercancel', rhythmEndPointer);
+
+const RHYTHM_KEYMAP = {ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right'};
+document.addEventListener('keydown', e=>{
+  if (!rhythmOverlay.classList.contains('active') || !rhythmState) return;
+  if (e.key === ' '){ e.preventDefault(); rhythmAdvance(); return; }
+  const lane = RHYTHM_KEYMAP[e.key];
+  if (!lane) return;
+  e.preventDefault();
+  if (rhythmState.phase !== 'playing') return;
+  const wasHeld = rhythmHeldKeys.has(lane);
+  rhythmHeldKeys.add(lane);
+  if (!e.repeat && !wasHeld) rhythmTryHit(lane);
+});
+document.addEventListener('keyup', e=>{
+  const lane = RHYTHM_KEYMAP[e.key];
+  if (lane) rhythmHeldKeys.delete(lane);
+});
+
+
 /* ═══════════════════════════════════════
-   MUSIC PLAYER + BUTTERCHURN VISUALIZER
+   SILICON PINBALL MINIGAME
+   Basic two-flipper table: gravity pulls the ball
+   down, bumpers pop it away and score points, the
+   flippers are swingable capsules that kick the ball
+   back up when tapped while it's in range. Drain past
+   the bottom costs a ball; 3 balls per game. Reach the
+   level's target score before they run out to win.
    ═══════════════════════════════════════ */
+let pinballState=null, pinballRAF=null, pinballLevelIndex=0;
+const pinballOverlay  = document.getElementById('pinballOverlay');
+const pinballCanvas   = document.getElementById('pinballCanvas');
+const pinballCtx      = pinballCanvas.getContext('2d');
+const pinballScoreEl  = document.getElementById('pinballScore');
+const pinballTargetEl = document.getElementById('pinballTarget');
+const pinballBallsEl  = document.getElementById('pinballBalls');
+const pinballMsgEl    = document.getElementById('pinballMsg');
+const pinballClose    = document.getElementById('pinballClose');
+const pinballTitleEl  = document.getElementById('pinballTitle');
+
+/* Bumper positions are fractions of the table's width/height so the
+   layout scales cleanly to any canvas size, same approach as the
+   Breakout brick grid. Level 1 is a simple 3-bumper triangle; level 2
+   packs in 5 bumpers, a narrower gap, and a higher target.
+   restGapBalls sets how wide the center opening is at rest, measured
+   in ball-widths (diameters) rather than a raw fraction, so it scales
+   naturally with however big the ball ends up on a given table size.
+   activeUpAngleDeg is how far past horizontal (in degrees) each flipper
+   tips upward when fully raised — see the comment in layoutPinballTable
+   for how those turn into flipper angles. */
+const pinballLevels = [
+  { label:'SILICON PINBALL', gravity:0.15, restGapBalls:2, activeUpAngleDeg:14, target:300,
+    bumperPositions:[
+      { x:0.50, y:0.26, points:50, color:'#ff4d6d' },
+      { x:0.30, y:0.42, points:30, color:'#ffe14d' },
+      { x:0.70, y:0.42, points:30, color:'#7dff7d' },
+    ] },
+  { label:'SILICON PINBALL II', gravity:0.18, restGapBalls:1.5, activeUpAngleDeg:16, target:600,
+    bumperPositions:[
+      { x:0.50, y:0.20, points:60, color:'#ff4d6d' },
+      { x:0.27, y:0.33, points:40, color:'#ffe14d' },
+      { x:0.73, y:0.33, points:40, color:'#7dff7d' },
+      { x:0.35, y:0.50, points:30, color:'#4dd2ff' },
+      { x:0.65, y:0.50, points:30, color:'#ff9f4d' },
+    ] },
+];
+
+let pinballKeyLeft=false, pinballKeyRight=false;
+const pinballPointerLeft=new Set(), pinballPointerRight=new Set();
+function pinballRecomputeFlippers(){
+  if(!pinballState) return;
+  pinballState.flippers.left.active  = pinballKeyLeft  || pinballPointerLeft.size>0;
+  pinballState.flippers.right.active = pinballKeyRight || pinballPointerRight.size>0;
+}
+
+function startPinball(levelIndex){
+  pinballLevelIndex = levelIndex || 0;
+  pinballTitleEl.textContent = pinballLevels[pinballLevelIndex].label;
+  pinballOverlay.classList.add('active');
+  pinballMsgEl.classList.remove('active');
+  pinballKeyLeft = pinballKeyRight = false;
+  pinballPointerLeft.clear(); pinballPointerRight.clear();
+  resizePinballCanvas();
+  initPinballLevel();
+  cancelAnimationFrame(pinballRAF);
+  pinballLoop();
+}
+
+function resizePinballCanvas(){
+  const stage = pinballCanvas.parentElement;
+  pinballCanvas.width  = stage.clientWidth;
+  pinballCanvas.height = stage.clientHeight;
+  if (pinballState){
+    layoutPinballTable();
+    pinballRecomputeFlippers();
+    const b = pinballState.ball;
+    b.x = Math.max(b.r, Math.min(pinballCanvas.width-b.r, b.x));
+    b.y = Math.max(b.r, Math.min(pinballCanvas.height-b.r, b.y));
+  }
+}
+
+function initPinballLevel(){
+  const lvl = pinballLevels[pinballLevelIndex];
+  pinballState = { score:0, balls:3, over:false, target:lvl.target, bumpers:[], flippers:null, ball:null };
+  layoutPinballTable();
+  spawnPinballBall();
+  updatePinballHud();
+}
+
+/* Ball radius as a function of table width — shared by the table layout
+   (so the rest gap can be sized in ball-widths) and by spawnPinballBall
+   (so the actual ball matches). Keeping this in one place means the two
+   can never drift out of sync. */
+function pinballBallRadius(w){
+  return Math.max(5, Math.min(8, w*0.018));
+}
+
+function layoutPinballTable(){
+  const w = pinballCanvas.width, h = pinballCanvas.height;
+  const lvl = pinballLevels[pinballLevelIndex];
+  const st = pinballState;
+
+  /* Pivots sit near the OUTER walls (like a real table) — the flipper's
+     body then sweeps from there in toward the center, so at rest it
+     closes off the entire side lane and only the small center gap is
+     left open. This was backwards before (pivots near center, tips
+     pointing away toward the walls), which left the outer lanes
+     completely uncovered and made the flippers nearly impossible to
+     use. */
+  const REST_ANGLE  = 22*Math.PI/180;
+  const pivotInset  = Math.max(22, Math.min(48, w*0.08));
+  const leftPivotX  = pivotInset;
+  const rightPivotX = w - pivotInset;
+
+  /* Rest gap is sized in ball-widths (diameters) rather than a raw
+     fraction of the table, so however big the ball ends up on this
+     table size, the resting opening always reads as "about N balls
+     wide" instead of scaling independently of the ball. */
+  const ballDiameter = pinballBallRadius(w) * 2;
+  const restGapFrac  = Math.min(0.9, (lvl.restGapBalls * ballDiameter) / w);
+
+  /* Flipper length is solved from the rest angle (fixed at a natural
+     ~22° tilt) rather than the other way around, so the geometry
+     always works out regardless of table size. Clamped noticeably
+     tighter than before — the old ceiling let flippers grow long
+     enough to run off the edges of the table on some sizes. */
+  const reachRest = Math.max(18, (w/2)*(1-restGapFrac) - leftPivotX);
+  let flipperLen = reachRest / Math.cos(REST_ANGLE);
+  flipperLen = Math.max(42, Math.min(flipperLen, w*0.40, h*0.34));
+
+  /* The rest position dips below the pivot by flipperLen*sin(REST_ANGLE).
+     pivotY has to account for that dip, or a long flipper's tip pokes
+     out past the bottom edge of the canvas — that was the "runs off
+     the screen" bug. Solving pivotY from the dip guarantees the tip
+     always lands a fixed, small margin above the bottom, regardless
+     of table size. */
+  const bottomMargin = 12;
+  const pivotY = h - bottomMargin - flipperLen*Math.sin(REST_ANGLE);
+
+  /* Active (fully-flipped) angle is a fixed upward tilt past horizontal,
+     rather than being solved backward from a target gap. Solving from a
+     tiny target gap could demand more reach than the flipper actually
+     has, which silently clamped the angle to 0 — flat and horizontal,
+     pointing straight at the opposite flipper instead of curling up and
+     away like a real flipper does. A fixed tilt guarantees the flippers
+     always visibly angle upward when raised. */
+  const restAngleMag   = REST_ANGLE;
+  const activeAngleMag = (lvl.activeUpAngleDeg||14) * Math.PI/180;
+  const thick = Math.max(6, Math.min(9, w*0.020));
+
+  st.flippers = {
+    left:  { px:leftPivotX,  py:pivotY, len:flipperLen, thick,
+             restAngle: restAngleMag,        activeAngle: -activeAngleMag,       angle: restAngleMag,        active:false },
+    right: { px:rightPivotX, py:pivotY, len:flipperLen, thick,
+             restAngle: Math.PI-restAngleMag, activeAngle: Math.PI+activeAngleMag, angle: Math.PI-restAngleMag, active:false },
+  };
+  const r = Math.max(11, Math.min(17, w*0.038));
+  st.bumpers = lvl.bumperPositions.map(p => ({ x:p.x*w, y:p.y*h, r, points:p.points, color:p.color, hitFlash:0 }));
+
+  /* Curved guide rails along both sides — mostly cosmetic (they give the
+     table the classic pinball funnel silhouette) but also collide, so
+     the ball rolls in along the wall and hands off smoothly to the
+     flipper pivot instead of finding a gap and draining past it.
+
+     The last point on each rail used to sit at a fixed fraction of
+     leftPivotX/flipperLen. That fraction left a gap to the actual
+     flipper pivot that could run several ball-widths wide depending on
+     table size — wide enough for the ball to slip past the flipper on
+     the outside and drain down the side lane instead of landing on it.
+     Anchored below to a fixed distance (in ball-widths, same approach
+     as restGapFrac above) from the pivot along that same approach
+     direction, so the side opening always reads as "about two balls
+     wide" no matter how the table scales. */
+  const sideGapBalls = 2;
+  function pinballSideGapPoint(pivotX, pivotY_, approachX, approachY){
+    const dx = approachX-pivotX, dy = approachY-pivotY_;
+    const dist = Math.hypot(dx,dy) || 1;
+    const gapDist = Math.min(dist, sideGapBalls*ballDiameter);
+    return { x: pivotX + (dx/dist)*gapDist, y: pivotY_ + (dy/dist)*gapDist };
+  }
+  const leftGapPt  = pinballSideGapPoint(leftPivotX,  pivotY, leftPivotX*0.55,     pivotY-flipperLen*0.35);
+  const rightGapPt = pinballSideGapPoint(rightPivotX, pivotY, w-leftPivotX*0.55,   pivotY-flipperLen*0.35);
+  st.walls = {
+    left: [
+      { x:w*0.14, y:h*0.04 },
+      { x:w*0.045,y:h*0.24 },
+      { x:w*0.025,y:h*0.46 },
+      leftGapPt,
+    ],
+    right: [
+      { x:w-w*0.14, y:h*0.04 },
+      { x:w-w*0.045,y:h*0.24 },
+      { x:w-w*0.025,y:h*0.46 },
+      rightGapPt,
+    ],
+  };
+}
+
+function spawnPinballBall(){
+  const w = pinballCanvas.width;
+  pinballState.ball = { x: w/2 + (Math.random()-0.5)*30, y: 34, r: pinballBallRadius(w), vx:(Math.random()-0.5)*3, vy:0 };
+}
+
+function pinballLoop(){
+  if(!pinballOverlay.classList.contains('active')){ cancelAnimationFrame(pinballRAF); return; }
+  updatePinball();
+  drawPinball();
+  pinballRAF = requestAnimationFrame(pinballLoop);
+}
+
+/* Generic ball-vs-segment collision. Returns the collision normal (and
+   already pushes the ball out of overlap) so callers can apply their
+   own velocity response — walls just want a bounce, flippers also want
+   an extra "kick" when actively swinging. */
+function pinballSegmentHit(ball, ax,ay,bx,by, thickness){
+  const abx=bx-ax, aby=by-ay;
+  const t = Math.max(0, Math.min(1, ((ball.x-ax)*abx+(ball.y-ay)*aby)/((abx*abx+aby*aby)||1)));
+  const cx=ax+abx*t, cy=ay+aby*t;
+  const dx=ball.x-cx, dy=ball.y-cy, dist=Math.hypot(dx,dy), combined=ball.r+thickness;
+  if (dist < combined && dist > 0.0001){
+    const nx=dx/dist, ny=dy/dist;
+    ball.x += nx*(combined-dist); ball.y += ny*(combined-dist);
+    return {nx,ny};
+  }
+  return null;
+}
+function pinballCollidePolyline(ball, pts, thickness, restitution){
+  for(let i=0;i<pts.length-1;i++){
+    const hit = pinballSegmentHit(ball, pts[i].x,pts[i].y,pts[i+1].x,pts[i+1].y, thickness);
+    if (hit){
+      const dot = ball.vx*hit.nx + ball.vy*hit.ny;
+      ball.vx -= 2*dot*hit.nx*restitution; ball.vy -= 2*dot*hit.ny*restitution;
+    }
+  }
+}
+
+function updatePinball(){
+  if(!pinballState || pinballState.over) return;
+  const st=pinballState, w=pinballCanvas.width, h=pinballCanvas.height;
+  const lvl = pinballLevels[pinballLevelIndex];
+
+  const ball = st.ball;
+  ball.vy += lvl.gravity;
+
+  /* Move the ball AND rotate the flippers in several small sub-steps
+     instead of one big jump per frame, re-checking collisions after
+     each one. Two different tunneling paths this closes:
+       1) At full speed the ball can travel further in one frame than
+          a collider is thick, so a single "move then check overlap"
+          test can land past it with no overlap ever detected.
+       2) A flipper mid-flip rotates quickly enough that its tip can
+          sweep right past a resting ball between one frame's angle
+          and the next — checked only at the two endpoints, the ball
+          never falls inside the swept arc at either moment, so the
+          flip appears to do nothing. This was the actual bug: a
+          stationary ball near the tip could have the whole flip motion
+          pass by it undetected. Sub-stepping the rotation too fixes
+          this, since the segment's position is now checked several
+          times along its sweep instead of only at the very end. */
+  const SUBSTEPS = 4;
+  /* The 0.85 / 0.94 damping factors below are meant as PER-FRAME rolling
+     friction, but they get applied once per substep — and since the ball
+     stays in overlap with the flipper across most/all of a frame's
+     substeps while resting on it, a raw 0.85 compounds to 0.85^4 ≈ 0.52
+     actually applied per frame. That crushes almost all of the speed
+     gravity just added, so instead of naturally accelerating down the
+     flipper's slope the ball creeps along and barely rolls at all.
+     Taking the SUBSTEPS-th root here restores the intended per-frame
+     strength regardless of how many substeps the physics loop uses. */
+  const flipperRestDamping  = Math.pow(0.85, 1/SUBSTEPS);
+  const flipperSwingDamping = Math.pow(0.94, 1/SUBSTEPS);
+  for (let step=0; step<SUBSTEPS; step++){
+    [st.flippers.left, st.flippers.right].forEach(f=>{
+      const targetAngle = f.active ? f.activeAngle : f.restAngle;
+      const diff = targetAngle - f.angle;
+      const maxStep = (f.active ? 0.22 : 0.15)/SUBSTEPS;
+      const prevAngle = f.angle;
+      if (Math.abs(diff) <= maxStep) f.angle = targetAngle; else f.angle += Math.sign(diff)*maxStep;
+      /* Only the flipper's own motion counts as an active "swing" strike.
+         Once it reaches the raised position and just sits there held, it's
+         no different from any other heavy surface the ball rests on —
+         swinging is false and the collision response below falls back to
+         the same low-restitution roll/settle behavior as the resting
+         flipper, instead of re-kicking the ball every single frame it
+         stays in contact. */
+      f.swinging = f.active && Math.abs(f.angle - prevAngle) > 0.0001;
+    });
+
+    ball.x += ball.vx/SUBSTEPS;
+    ball.y += ball.vy/SUBSTEPS;
+
+    if (ball.x-ball.r < 0){ ball.x=ball.r; ball.vx=-ball.vx*0.85; }
+    if (ball.x+ball.r > w){ ball.x=w-ball.r; ball.vx=-ball.vx*0.85; }
+    if (ball.y-ball.r < 0){ ball.y=ball.r; ball.vy=-ball.vy*0.85; }
+
+    pinballCollidePolyline(ball, st.walls.left,  5, 0.8);
+    pinballCollidePolyline(ball, st.walls.right, 5, 0.8);
+
+    st.bumpers.forEach(b=>{
+      const dx=ball.x-b.x, dy=ball.y-b.y, dist=Math.hypot(dx,dy), combined=ball.r+b.r;
+      if (dist < combined && dist > 0.0001){
+        const nx=dx/dist, ny=dy/dist;
+        ball.x += nx*(combined-dist); ball.y += ny*(combined-dist);
+        const dot = ball.vx*nx + ball.vy*ny;
+        ball.vx -= 2*dot*nx; ball.vy -= 2*dot*ny;
+        const speed = Math.hypot(ball.vx, ball.vy);
+        const boosted = Math.max(speed*1.08, 5.5);
+        const ratio = boosted/(speed||1);
+        ball.vx *= ratio; ball.vy *= ratio;
+        b.hitFlash = 1;
+        st.score += b.points;
+        updatePinballHud();
+      }
+    });
+
+    [st.flippers.left, st.flippers.right].forEach(f=>{
+      const tipx=f.px+Math.cos(f.angle)*f.len, tipy=f.py+Math.sin(f.angle)*f.len;
+      const hit = pinballSegmentHit(ball, f.px,f.py,tipx,tipy, f.thick);
+      if (hit){
+        const dot = ball.vx*hit.nx + ball.vy*hit.ny;
+        /* Only reflect if the ball is actually moving into the flipper.
+           Without this guard, a ball resting/rolling on an idle flipper
+           gets re-reflected every step gravity re-creates the overlap —
+           even while already moving away — which is what was causing
+           the constant jittery over-bouncing. Restitution is low (0.18)
+           whenever the flipper isn't actively swinging — whether it's
+           sitting at rest or held up in the raised position — so the
+           ball behaves like a heavy metal ball settling and rolling down
+           the paddle instead of a rubber ball. Only the instant of an
+           actual swing (f.swinging, set above from real angular motion)
+           gets the full-strength (1.0) bounce plus the extra kick impulse
+           below — a real strike, not a held surface. */
+        if (dot < 0){
+          const e = f.swinging ? 1.0 : 0.18;
+          ball.vx -= (1+e)*dot*hit.nx; ball.vy -= (1+e)*dot*hit.ny;
+        }
+        /* Heavier rolling friction while resting/held so the ball sheds
+           speed and settles into rolling along the paddle's slope rather
+           than skating across it and re-bouncing. Full damping only
+           applies to the swing strike itself, which needs to preserve
+           most of the kick's energy. */
+        const damping = f.swinging ? flipperSwingDamping : flipperRestDamping;
+        ball.vx *= damping; ball.vy *= damping;
+        if (f.swinging){ ball.vx += hit.nx*11; ball.vy += hit.ny*11-3; }
+      }
+    });
+
+    const MAX_SPEED=11, spd=Math.hypot(ball.vx,ball.vy);
+    if (spd > MAX_SPEED){ const s=MAX_SPEED/spd; ball.vx*=s; ball.vy*=s; }
+  }
+
+  if (ball.y - ball.r > h){
+    st.balls--;
+    updatePinballHud();
+    if (st.balls <= 0) pinballGameOver(); else spawnPinballBall();
+    return;
+  }
+
+  if (st.score >= st.target) pinballWin();
+}
+
+/* Draws a polyline as a smooth glowing curve (quadratic curves through
+   each segment's midpoint) — this is what gives the table its curvy
+   pinball-funnel silhouette instead of straight ruler-edge walls. */
+function pinballStrokeSmooth(ctx, pts, color, width, glow){
+  if (pts.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i=1;i<pts.length-1;i++){
+    const mx=(pts[i].x+pts[i+1].x)/2, my=(pts[i].y+pts[i+1].y)/2;
+    ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+  }
+  ctx.lineTo(pts[pts.length-1].x, pts[pts.length-1].y);
+  ctx.strokeStyle=color; ctx.lineWidth=width; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.shadowColor=color; ctx.shadowBlur=glow;
+  ctx.stroke();
+  ctx.shadowBlur=0;
+}
+
+function drawPinball(){
+  const ctx=pinballCtx, w=pinballCanvas.width, h=pinballCanvas.height;
+  ctx.clearRect(0,0,w,h);
+  if(!pinballState) return;
+  const st=pinballState;
+  const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()||'#7dd9ff';
+  const brightColor   = getComputedStyle(document.documentElement).getPropertyValue('--bright').trim()||'#ccf2ff';
+
+  pinballStrokeSmooth(ctx, st.walls.left,  brightColor, 6, 8);
+  pinballStrokeSmooth(ctx, st.walls.right, brightColor, 6, 8);
+
+  st.bumpers.forEach(b=>{
+    const rr = b.r * (1 + b.hitFlash*0.25);
+    const grad = ctx.createRadialGradient(b.x-rr*0.3, b.y-rr*0.3, rr*0.1, b.x, b.y, rr);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.35, b.color);
+    grad.addColorStop(1, b.color);
+    ctx.beginPath(); ctx.arc(b.x,b.y,rr,0,Math.PI*2);
+    ctx.fillStyle=grad; ctx.shadowColor=b.color; ctx.shadowBlur=8+b.hitFlash*16;
+    ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.shadowBlur=0; ctx.stroke();
+    if (b.hitFlash>0) b.hitFlash=Math.max(0, b.hitFlash-0.06);
+  });
+  ctx.shadowBlur=0;
+
+  /* Flippers drawn as a tapered wedge (wide at the pivot, narrow at the
+     tip) instead of a uniform-width line — gives them the chunky
+     paddle silhouette of a real pinball flipper. */
+  [st.flippers.left, st.flippers.right].forEach(f=>{
+    const tipx=f.px+Math.cos(f.angle)*f.len, tipy=f.py+Math.sin(f.angle)*f.len;
+    const dirx=Math.cos(f.angle), diry=Math.sin(f.angle);
+    const perpx=-diry, perpy=dirx;
+    const baseW=f.thick*1.8, tipW=f.thick*0.7;
+    const baseL={x:f.px+perpx*baseW/2, y:f.py+perpy*baseW/2};
+    const baseR={x:f.px-perpx*baseW/2, y:f.py-perpy*baseW/2};
+    const tipL ={x:tipx+perpx*tipW/2,  y:tipy+perpy*tipW/2};
+    const tipR ={x:tipx-perpx*tipW/2,  y:tipy-perpy*tipW/2};
+
+    ctx.beginPath();
+    ctx.moveTo(baseL.x,baseL.y); ctx.lineTo(tipL.x,tipL.y);
+    ctx.lineTo(tipR.x,tipR.y); ctx.lineTo(baseR.x,baseR.y);
+    ctx.closePath();
+    ctx.fillStyle=primaryColor; ctx.shadowColor=primaryColor; ctx.shadowBlur=10;
+    ctx.fill();
+    ctx.lineWidth=1.5; ctx.strokeStyle=brightColor; ctx.shadowBlur=0; ctx.stroke();
+
+    /* rounded pivot cap */
+    ctx.beginPath(); ctx.arc(f.px,f.py,baseW/2,0,Math.PI*2);
+    ctx.fillStyle=primaryColor; ctx.shadowColor=primaryColor; ctx.shadowBlur=8; ctx.fill(); ctx.shadowBlur=0;
+  });
+
+  const ball=st.ball;
+  ctx.beginPath(); ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+  ctx.fillStyle='#fff'; ctx.shadowColor='#fff'; ctx.shadowBlur=10; ctx.fill();
+  ctx.shadowBlur=0;
+}
+
+function updatePinballHud(){
+  pinballScoreEl.textContent  = 'SCORE: '+pinballState.score;
+  pinballTargetEl.textContent = 'TARGET: '+pinballState.target;
+  pinballBallsEl.textContent  = 'BALLS: '+Math.max(0, pinballState.balls);
+}
+
+function pinballWin(){
+  const st=pinballState;
+  st.over=true;
+  const isFirstWin = (pinballLevelIndex===0 && !pinball2Unlocked);
+  if (pinballLevelIndex===0) unlockPinball2();
+  const earnedPoints = awardPoints(pinballLevelIndex+1);
+  let msg='TARGET REACHED<span class="small">SCORE: '+st.score+' &mdash; SPACE OR TAP TO PLAY AGAIN</span>';
+  msg += pointsMsg(earnedPoints);
+  if (isFirstWin) msg+='<span class="small" style="color:var(--bright);">NEW LEVEL UNLOCKED — SILICON PINBALL II IN THE MINIGAME MENU</span>';
+  pinballMsgEl.innerHTML=msg;
+  pinballMsgEl.classList.add('active');
+}
+function pinballGameOver(){
+  pinballState.over=true;
+  pinballMsgEl.innerHTML='TABLE DRAINED<span class="small">SCORE: '+pinballState.score+' / '+pinballState.target+' &mdash; SPACE OR TAP TO RETRY</span>';
+  pinballMsgEl.classList.add('active');
+}
+
+function closePinball(){
+  pinballOverlay.classList.remove('active');
+  cancelAnimationFrame(pinballRAF);
+  pinballState=null;
+  pinballMsgEl.classList.remove('active');
+  pinballPointerLeft.clear(); pinballPointerRight.clear();
+  pinballKeyLeft = pinballKeyRight = false;
+}
+pinballClose.addEventListener('click', ()=>{ closePinball(); input.focus(); });
+pinballMsgEl.addEventListener('pointerdown', ()=>{
+  if (pinballState && pinballState.over){ initPinballLevel(); pinballMsgEl.classList.remove('active'); }
+});
+
+document.addEventListener('keydown', e=>{
+  if(!pinballOverlay.classList.contains('active')) return;
+  if (e.key==='ArrowLeft'||e.key==='a'||e.key==='A'){ e.preventDefault(); pinballKeyLeft=true; pinballRecomputeFlippers(); }
+  else if (e.key==='ArrowRight'||e.key==='d'||e.key==='D'){ e.preventDefault(); pinballKeyRight=true; pinballRecomputeFlippers(); }
+  else if (e.key===' '||e.key==='Spacebar'||e.key==='Enter'){
+    e.preventDefault();
+    if (pinballState && pinballState.over){ initPinballLevel(); pinballMsgEl.classList.remove('active'); }
+  }
+});
+document.addEventListener('keyup', e=>{
+  if (e.key==='ArrowLeft'||e.key==='a'||e.key==='A'){ pinballKeyLeft=false; pinballRecomputeFlippers(); }
+  else if (e.key==='ArrowRight'||e.key==='d'||e.key==='D'){ pinballKeyRight=false; pinballRecomputeFlippers(); }
+});
+
+pinballCanvas.addEventListener('pointerdown', e=>{
+  const rect=pinballCanvas.getBoundingClientRect();
+  const isLeft = (e.clientX-rect.left) < rect.width/2;
+  if (isLeft) pinballPointerLeft.add(e.pointerId); else pinballPointerRight.add(e.pointerId);
+  pinballRecomputeFlippers();
+  try { pinballCanvas.setPointerCapture(e.pointerId); } catch(_){}
+});
+function pinballEndPointer(e){
+  pinballPointerLeft.delete(e.pointerId);
+  pinballPointerRight.delete(e.pointerId);
+  pinballRecomputeFlippers();
+}
+pinballCanvas.addEventListener('pointerup', pinballEndPointer);
+pinballCanvas.addEventListener('pointercancel', pinballEndPointer);
+
+window.addEventListener('resize', ()=>{
+  if (pinballOverlay.classList.contains('active')) resizePinballCanvas();
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   GOLD ROAD (DOKAPON BOARD) MINIGAME
+   A full standalone board-game HTML file, loaded lazily into an
+   iframe the first time it's opened. It posts a message back here
+   when a game finishes so a Signal Point can be awarded.
+   ═══════════════════════════════════════════════════════════════ */
+const dokaponOverlay = document.getElementById('dokaponOverlay');
+const dokaponFrame   = document.getElementById('dokaponFrame');
+const dokaponClose   = document.getElementById('dokaponClose');
+const dokaponLoading = document.getElementById('dokaponLoading');
+let dokaponLoaded = false;
+
+function startDokapon(){
+  dokaponOverlay.classList.add('active');
+  if (!dokaponLoaded){
+    dokaponLoading.classList.remove('hidden');
+    dokaponFrame.addEventListener('load', ()=>{ dokaponLoading.classList.add('hidden'); }, { once:true });
+    dokaponFrame.src = 'dokaponboard.html';
+    dokaponLoaded = true;
+  }
+}
+function closeDokapon(){
+  dokaponOverlay.classList.remove('active');
+  /* Drop the iframe src so a fresh session starts next time and any
+     running game loop / audio in the embedded game stops cleanly. */
+  dokaponFrame.src = 'about:blank';
+  dokaponLoaded = false;
+}
+dokaponClose.addEventListener('click', ()=>{ closeDokapon(); input.focus(); });
+
+window.addEventListener('message', e=>{
+  if (!e.data || e.data.source!=='dokaponboard') return;
+  if (e.data.type==='gameover'){
+    awardPoints(e.data.win ? 2 : 1);
+    if (typeof updateVendorHud === 'function') updateVendorHud();
+  }
+});
+
+
+/* ═══════════════════════════════════════════════════════════════
+   MUSIC PLAYER + BUTTERCHURN VISUALIZER
+   ═══════════════════════════════════════════════════════════════ */
 const musicOverlay  = document.getElementById('musicOverlay');
 const musicClose    = document.getElementById('musicClose');
 const vizToggleBtn  = document.getElementById('vizToggleBtn');
@@ -2705,11 +5625,14 @@ function startEmulator(){
 }
 /* ═══════════════════════════════════════
    GLITTER PARTICLE SYSTEM
+   Reusable factory so the same twinkling sparkle
+   effect can run on the main terminal screen AND
+   inside every minigame window/overlay.
    ═══════════════════════════════════════ */
-(function(){
-  const canvas = document.getElementById('glitterCanvas');
+function attachGlitter(canvas, particleCount){
+  if(!canvas) return;
   const ctx = canvas.getContext('2d');
-  let W, H, particles = [];
+  let W, H, particles = [], running = true;
 
   /* Pull the current primary color from CSS variables for theme-aware sparkles */
   function getPrimaryRGB(){
@@ -2724,6 +5647,12 @@ function startEmulator(){
     H = canvas.height = canvas.offsetHeight;
   }
   window.addEventListener('resize', resize);
+  /* Overlay canvases start at display:none (0x0) — ResizeObserver catches
+     the moment the overlay opens and the canvas actually gets a size,
+     which a plain window 'resize' listener would miss. */
+  if(window.ResizeObserver){
+    new ResizeObserver(resize).observe(canvas);
+  }
   resize();
 
   /* Particle types: tiny dot, 4-point star, small cross */
@@ -2756,7 +5685,7 @@ function startEmulator(){
   }
 
   /* Seed initial particles spread across the whole screen */
-  const PARTICLE_COUNT = 55;
+  const PARTICLE_COUNT = particleCount || 55;
   for(let i=0;i<PARTICLE_COUNT;i++){
     const p = spawn();
     p.alpha = Math.random() * p.maxAlpha; /* start at random phase */
@@ -2781,6 +5710,20 @@ function startEmulator(){
   }
 
   function tick(){
+    if(!running) return;
+    /* Skip all particle math/drawing when this canvas is display:none
+       (offsetParent === null) or covered by a different active overlay.
+       Previously all 12 glitter instances ran their full particle loop
+       forever regardless of visibility, which was pure wasted CPU/GPU
+       on mobile — especially stacked on top of an actual minigame's
+       own render loop. The rAF chain itself stays alive (cheap) so the
+       effect resumes instantly once visible again. */
+    const activeOverlay = document.querySelector('.sc-overlay.active');
+    const coveredByOtherOverlay = activeOverlay && !activeOverlay.contains(canvas);
+    if (canvas.offsetParent === null || coveredByOtherOverlay) {
+      requestAnimationFrame(tick);
+      return;
+    }
     ctx.clearRect(0,0,W,H);
     particles.forEach(p => {
       p.x += p.vx; p.y += p.vy;
@@ -2822,7 +5765,17 @@ function startEmulator(){
     requestAnimationFrame(tick);
   }
   tick();
-})();
+
+  return { stop(){ running = false; }, resize };
+}
+
+/* Main terminal screen sparkles */
+attachGlitter(document.getElementById('glitterCanvas'), 55);
+
+/* Same twinkling sparkle effect inside every minigame window/overlay.
+   Lower particle count since these windows are typically smaller/busier
+   with game content, so the sparkle stays subtle rather than distracting. */
+document.querySelectorAll('.sc-overlay .sc-glitter').forEach(c => attachGlitter(c, 32));
 </script>
 </body>
 </html>
