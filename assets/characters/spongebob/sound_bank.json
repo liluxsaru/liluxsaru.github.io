@@ -1,0 +1,377 @@
+{
+  "note": "Every sound in Spongebob.snd, extracted to sounds/. Spongebob.snd genuinely reuses some (group,sample) keys (e.g. 0,0 x10) - `variants` lists every wav under that key, `resolved` is the single one real MUGEN would actually play for a bare PlaySnd(group,sample) reference (last one defined wins).",
+  "sounds": [
+    {
+      "group": 0,
+      "sample": 0,
+      "variants": [
+        "0_0.wav",
+        "0_0_1.wav",
+        "0_0_2.wav",
+        "0_0_3.wav",
+        "0_0_4.wav",
+        "0_0_5.wav",
+        "0_0_6.wav",
+        "0_0_7.wav",
+        "0_0_8.wav",
+        "0_0_9.wav"
+      ],
+      "resolved": "0_0_9.wav"
+    },
+    {
+      "group": 1,
+      "sample": 0,
+      "variants": [
+        "1_0.wav",
+        "1_0_1.wav",
+        "1_0_2.wav",
+        "1_0_3.wav",
+        "1_0_4.wav",
+        "1_0_5.wav",
+        "1_0_6.wav",
+        "1_0_7.wav",
+        "1_0_8.wav",
+        "1_0_9.wav"
+      ],
+      "resolved": "1_0_9.wav"
+    },
+    {
+      "group": 2,
+      "sample": 0,
+      "variants": [
+        "2_0.wav",
+        "2_0_1.wav"
+      ],
+      "resolved": "2_0_1.wav"
+    },
+    {
+      "group": 5,
+      "sample": 0,
+      "variants": [
+        "5_0.wav",
+        "5_0_1.wav"
+      ],
+      "resolved": "5_0_1.wav"
+    },
+    {
+      "group": 11,
+      "sample": 0,
+      "variants": [
+        "11_0.wav",
+        "11_0_1.wav",
+        "11_0_2.wav",
+        "11_0_3.wav",
+        "11_0_4.wav"
+      ],
+      "resolved": "11_0_4.wav"
+    },
+    {
+      "group": 12,
+      "sample": 0,
+      "variants": [
+        "12_0.wav",
+        "12_0_1.wav",
+        "12_0_2.wav"
+      ],
+      "resolved": "12_0_2.wav"
+    },
+    {
+      "group": 20,
+      "sample": 0,
+      "variants": [
+        "20_0.wav"
+      ],
+      "resolved": "20_0.wav"
+    },
+    {
+      "group": 54,
+      "sample": 0,
+      "variants": [
+        "54_0.wav",
+        "54_0_1.wav"
+      ],
+      "resolved": "54_0_1.wav"
+    },
+    {
+      "group": 150,
+      "sample": 0,
+      "variants": [
+        "150_0.wav"
+      ],
+      "resolved": "150_0.wav"
+    },
+    {
+      "group": 195,
+      "sample": 0,
+      "variants": [
+        "195_0.wav"
+      ],
+      "resolved": "195_0.wav"
+    },
+    {
+      "group": 230,
+      "sample": 0,
+      "variants": [
+        "230_0.wav",
+        "230_0_1.wav",
+        "230_0_2.wav",
+        "230_0_3.wav",
+        "230_0_4.wav",
+        "230_0_5.wav",
+        "230_0_6.wav",
+        "230_0_7.wav",
+        "230_0_8.wav",
+        "230_0_9.wav"
+      ],
+      "resolved": "230_0_9.wav"
+    },
+    {
+      "group": 500,
+      "sample": 0,
+      "variants": [
+        "500_0.wav"
+      ],
+      "resolved": "500_0.wav"
+    },
+    {
+      "group": 170,
+      "sample": 0,
+      "variants": [
+        "170_0.wav"
+      ],
+      "resolved": "170_0.wav"
+    },
+    {
+      "group": 730,
+      "sample": 0,
+      "variants": [
+        "730_0.wav",
+        "730_0_1.wav",
+        "730_0_2.wav"
+      ],
+      "resolved": "730_0_2.wav"
+    },
+    {
+      "group": 1000,
+      "sample": 0,
+      "variants": [
+        "1000_0.wav",
+        "1000_0_1.wav"
+      ],
+      "resolved": "1000_0_1.wav"
+    },
+    {
+      "group": 1100,
+      "sample": 0,
+      "variants": [
+        "1100_0.wav",
+        "1100_0_1.wav"
+      ],
+      "resolved": "1100_0_1.wav"
+    },
+    {
+      "group": 1340,
+      "sample": 0,
+      "variants": [
+        "1340_0.wav",
+        "1340_0_1.wav",
+        "1340_0_2.wav",
+        "1340_0_3.wav"
+      ],
+      "resolved": "1340_0_3.wav"
+    },
+    {
+      "group": 1420,
+      "sample": 0,
+      "variants": [
+        "1420_0.wav"
+      ],
+      "resolved": "1420_0.wav"
+    },
+    {
+      "group": 2000,
+      "sample": 0,
+      "variants": [
+        "2000_0.wav",
+        "2000_0_1.wav",
+        "2000_0_2.wav"
+      ],
+      "resolved": "2000_0_2.wav"
+    },
+    {
+      "group": 3200,
+      "sample": 0,
+      "variants": [
+        "3200_0.wav"
+      ],
+      "resolved": "3200_0.wav"
+    },
+    {
+      "group": 3300,
+      "sample": 0,
+      "variants": [
+        "3300_0.wav"
+      ],
+      "resolved": "3300_0.wav"
+    },
+    {
+      "group": 5000,
+      "sample": 0,
+      "variants": [
+        "5000_0.wav"
+      ],
+      "resolved": "5000_0.wav"
+    },
+    {
+      "group": 7600,
+      "sample": 0,
+      "variants": [
+        "7600_0.wav"
+      ],
+      "resolved": "7600_0.wav"
+    },
+    {
+      "group": 8000,
+      "sample": 0,
+      "variants": [
+        "8000_0.wav",
+        "8000_0_1.wav",
+        "8000_0_2.wav",
+        "8000_0_3.wav",
+        "8000_0_4.wav",
+        "8000_0_5.wav"
+      ],
+      "resolved": "8000_0_5.wav"
+    },
+    {
+      "group": 8100,
+      "sample": 0,
+      "variants": [
+        "8100_0.wav"
+      ],
+      "resolved": "8100_0.wav"
+    },
+    {
+      "group": 8200,
+      "sample": 0,
+      "variants": [
+        "8200_0.wav"
+      ],
+      "resolved": "8200_0.wav"
+    },
+    {
+      "group": 8400,
+      "sample": 0,
+      "variants": [
+        "8400_0.wav",
+        "8400_0_1.wav",
+        "8400_0_2.wav"
+      ],
+      "resolved": "8400_0_2.wav"
+    },
+    {
+      "group": 8420,
+      "sample": 0,
+      "variants": [
+        "8420_0.wav"
+      ],
+      "resolved": "8420_0.wav"
+    },
+    {
+      "group": 8500,
+      "sample": 0,
+      "variants": [
+        "8500_0.wav"
+      ],
+      "resolved": "8500_0.wav"
+    },
+    {
+      "group": 8600,
+      "sample": 0,
+      "variants": [
+        "8600_0.wav"
+      ],
+      "resolved": "8600_0.wav"
+    },
+    {
+      "group": 8700,
+      "sample": 0,
+      "variants": [
+        "8700_0.wav"
+      ],
+      "resolved": "8700_0.wav"
+    },
+    {
+      "group": 8888,
+      "sample": 0,
+      "variants": [
+        "8888_0.wav"
+      ],
+      "resolved": "8888_0.wav"
+    },
+    {
+      "group": 8889,
+      "sample": 0,
+      "variants": [
+        "8889_0.wav",
+        "8889_0_1.wav",
+        "8889_0_2.wav"
+      ],
+      "resolved": "8889_0_2.wav"
+    },
+    {
+      "group": 9999,
+      "sample": 0,
+      "variants": [
+        "9999_0.wav",
+        "9999_0_1.wav",
+        "9999_0_2.wav",
+        "9999_0_3.wav"
+      ],
+      "resolved": "9999_0_3.wav"
+    },
+    {
+      "group": 19200,
+      "sample": 0,
+      "variants": [
+        "19200_0.wav"
+      ],
+      "resolved": "19200_0.wav"
+    },
+    {
+      "group": 25000,
+      "sample": 0,
+      "variants": [
+        "25000_0.wav",
+        "25000_0_1.wav",
+        "25000_0_2.wav",
+        "25000_0_3.wav"
+      ],
+      "resolved": "25000_0_3.wav"
+    },
+    {
+      "group": 15464,
+      "sample": 1,
+      "variants": [
+        "15464_1.wav",
+        "15464_1_1.wav",
+        "15464_1_2.wav",
+        "15464_1_3.wav",
+        "15464_1_4.wav",
+        "15464_1_5.wav",
+        "15464_1_6.wav",
+        "15464_1_7.wav"
+      ],
+      "resolved": "15464_1_7.wav"
+    },
+    {
+      "group": -4608,
+      "sample": 2,
+      "variants": [
+        "-4608_2.wav",
+        "-4608_2_1.wav"
+      ],
+      "resolved": "-4608_2_1.wav"
+    }
+  ]
+}
