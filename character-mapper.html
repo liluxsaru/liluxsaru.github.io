@@ -1,0 +1,3431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Lite Fighter — Character Mapper</title>
+<style>
+		/* Shared house font across all three tools - ships as a real file at
+		   assets/fonts/all-around-the-world.otf next to this HTML (not embedded), same convention
+		   character sprites/atlases use. Every font-family/ctx.font in this file falls back to
+		   monospace if it fails to load. */
+		@font-face {
+			font-family: "All Around The World";
+			src: url("assets/fonts/all-around-the-world.otf") format("opentype");
+			font-display: swap;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font-family: 'All Around The World', monospace;
+			background: #14151c;
+			color: #e6e6e6;
+			display: grid;
+			/* minmax(0, ...) instead of a bare px value lets each track shrink below its content's
+			   intrinsic min-width (the default "auto" min-width grid tracks otherwise use) - without
+			   this, a mid-size window (wider than the 900px mobile breakpoint below, but narrower
+			   than ~300+380+340px) had nowhere for the excess width to go, so the grid silently
+			   overflowed the viewport: #actionList still rendered at its full 300px on the left,
+			   but #slots (and its own scrollbar) got pushed off past the right edge with no visible
+			   way back to it. Now every column instead just narrows to fit. */
+			grid-template-columns: minmax(0, 300px) minmax(0, 1fr) minmax(0, 340px);
+			grid-template-rows: auto auto 1fr;
+			height: 100vh;
+		}
+		header {
+			grid-column: 1 / -1;
+			background: #1e212e;
+			padding: 10px 16px;
+			display: flex;
+			align-items: center;
+			gap: 16px;
+			border-bottom: 1px solid #33384a;
+		}
+		header h1 { font-size: 15px; margin: 0; color: #5dd0ff; }
+		header select, header button {
+			background: #242838;
+			color: #e6e6e6;
+			border: 1px solid #444a5e;
+			padding: 5px 10px;
+			font-family: 'All Around The World', monospace;
+			font-size: 12px;
+			cursor: pointer;
+			border-radius: 3px;
+		}
+		header button.primary { background: #2f9fd8; border-color: #5dd0ff; color: #0b0c10; font-weight: bold; }
+		#status { font-size: 12px; color: #888; margin-left: auto; }
+
+		#actionList {
+			border-right: 1px solid #33384a;
+			overflow-y: auto;
+			overflow-x: hidden;
+			min-width: 0; /* see body's grid-template-columns comment - lets this track actually shrink */
+			padding: 8px;
+		}
+		#actionList input {
+			width: 100%;
+			background: #1a1d28;
+			border: 1px solid #33384a;
+			color: #e6e6e6;
+			padding: 6px;
+			font-family: 'All Around The World', monospace;
+			margin-bottom: 8px;
+			border-radius: 3px;
+		}
+		.action-row {
+			padding: 4px 8px;
+			font-size: 12px;
+			cursor: pointer;
+			border-radius: 3px;
+			display: flex;
+			justify-content: space-between;
+		}
+		.action-row:hover { background: #242838; }
+		.action-row.selected { background: #2f9fd8; color: #0b0c10; }
+		.action-row .frames { color: #888; }
+		.action-row.selected .frames { color: #0b0c10aa; }
+		.action-row.hasHit::before { content: "⚔ "; }
+		.action-row.assigned::after { content: " ●"; color: #5dd0ff; }
+		.action-row.selected.assigned::after { color: #0b0c10; }
+
+		#preview {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			padding: 16px;
+			gap: 10px;
+			min-width: 0; /* see body's grid-template-columns comment */
+		}
+		#previewCanvas {
+			background: #0b0c10;
+			border: 1px solid #33384a;
+			image-rendering: pixelated;
+			max-width: 100%;
+			height: auto; /* keeps the canvas's real 360x360 drawing surface, just scales it down
+			                 visually so a narrowed middle column shrinks the preview instead of
+			                 forcing the whole grid wider than the viewport */
+		}
+		#previewInfo { font-size: 12px; color: #888; text-align: center; }
+		#previewControls { display: flex; gap: 8px; }
+		#previewControls button {
+			background: #242838; color: #e6e6e6; border: 1px solid #444a5e;
+			padding: 6px 12px; font-family: 'All Around The World', monospace; cursor: pointer; border-radius: 3px;
+		}
+
+		#slots {
+			border-left: 1px solid #33384a;
+			overflow-y: auto;
+			overflow-x: hidden;
+			min-width: 0; /* see body's grid-template-columns comment */
+			padding: 10px;
+		}
+		.slot-category {
+			font-size: 11px;
+			text-transform: uppercase;
+			color: #666;
+			margin: 14px 0 4px;
+			letter-spacing: 1px;
+		}
+		.slot-category:first-child { margin-top: 0; }
+		.slot-row {
+			background: #1a1d28;
+			border: 1px solid #33384a;
+			border-radius: 4px;
+			padding: 6px 8px;
+			margin-bottom: 6px;
+		}
+		.slot-row.filled { border-color: #3a7a4a; }
+		.slot-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			font-size: 12px;
+			margin-bottom: 4px;
+		}
+		.slot-header .label { font-weight: bold; }
+		.slot-header .action-tag { color: #5dd0ff; font-size: 11px; }
+		.slot-header .action-tag.empty { color: #555; }
+		.slot-buttons { display: flex; gap: 4px; }
+		.slot-buttons button {
+			font-size: 10px; padding: 3px 6px; background: #242838; color: #ccc;
+			border: 1px solid #444a5e; cursor: pointer; border-radius: 3px;
+		}
+		.slot-buttons button.assign { background: #2f9fd8; border-color: #5dd0ff; color: #0b0c10; }
+		.tuning {
+			display: none;
+			grid-template-columns: repeat(4, 1fr);
+			gap: 4px;
+			margin-top: 4px;
+		}
+		.slot-row.filled .tuning { display: grid; }
+		.tuning label { font-size: 9px; color: #888; display: block; }
+		.tuning input {
+			width: 100%; background: #14151c; border: 1px solid #33384a; color: #e6e6e6;
+			font-family: 'All Around The World', monospace; font-size: 10px; padding: 2px 3px; border-radius: 2px;
+		}
+
+		.cm-card, .summon-card {
+			background: #14151c; border: 1px solid #33384a; border-radius: 4px;
+			padding: 8px 10px; margin-bottom: 8px;
+		}
+		.cm-card-head, .summon-card-head {
+			display: flex; justify-content: space-between; align-items: center;
+			font-size: 11px; font-weight: bold; color: #e6e6e6; margin-bottom: 6px;
+		}
+		.cm-card-head button, .summon-card-head button {
+			font-size: 10px; padding: 3px 6px; background: #242838; color: #ccc;
+			border: 1px solid #444a5e; cursor: pointer; border-radius: 3px;
+		}
+		.field-grid {
+			display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+			gap: 4px; margin-top: 4px;
+		}
+		.field-grid label { font-size: 9px; color: #888; display: block; }
+		.field-grid input, .field-grid select {
+			width: 100%; background: #0b0c10; border: 1px solid #33384a; color: #e6e6e6;
+			font-family: 'All Around The World', monospace; font-size: 10px; padding: 3px 4px; border-radius: 2px;
+		}
+		.field-row-inline { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #aaa; margin-top: 6px; }
+
+		.upload-dropzone {
+			border: 2px dashed #444a5e;
+			border-radius: 6px;
+			padding: 16px 12px;
+			text-align: center;
+			font-size: 11px;
+			color: #8fa0b8;
+			cursor: pointer;
+			transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+			background: #14151cbb;
+		}
+		.upload-dropzone:hover { border-color: #5dd0ff88; color: #b8cbe0; }
+		.upload-dropzone.dragover { border-color: #5dd0ff; background: #1a2430; color: #e8ecf4; }
+		.upload-dropzone.rejected { border-color: #ff6b6b; color: #ff9d9d; }
+
+		#uploadChecklist { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
+		.upload-char-card {
+			background: #14151c; border: 1px solid #33384a; border-radius: 6px;
+			padding: 8px 10px; font-size: 10.5px; min-width: 190px;
+		}
+		.upload-char-card.complete { border-color: #3a7a4a; }
+		.upload-char-card .uc-name { font-weight: bold; color: #e6e6e6; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+		.upload-char-card .uc-name .uc-remove { cursor: pointer; color: #888; font-size: 10px; }
+		.upload-char-card .uc-name .uc-remove:hover { color: #ff6b6b; }
+		.upload-char-card ul { list-style: none; margin: 0; padding: 0; }
+		.upload-char-card li { padding: 1px 0; color: #888; }
+		.upload-char-card li.have { color: #8fe86f; }
+		.upload-char-card li.missing { color: #ff9d5d; }
+		.upload-char-card li.optional-missing { color: #666; }
+		.upload-char-card .uc-status { margin-top: 4px; font-size: 9.5px; color: #5dd0ff; }
+
+</style>
+<style>
+/* ===== Mobile / touch-friendly overrides on top of the original desktop-only CSS above.
+   These are pure additions - none of the tool's existing JS was touched. ===== */
+
+/* Some mobile browsers (notably some Android WebViews) silently refuse to open the native file
+   picker via .click() on an <input type=file> that's display:none - it's just not considered
+   interactable at all there. That's the actual cause of "no dialog appears": the click handler
+   was firing fine (the hint text toggling proves that), it's specifically uploadInput.click()
+   that was a no-op. Swap to the standard visually-hidden-but-still-interactive pattern instead
+   (kept in the layout, just invisible), which every browser treats as clickable. !important is
+   needed here because the original markup sets display:none inline, which otherwise always wins. */
+#uploadInput {
+	display: block !important;
+	position: absolute !important;
+	width: 1px !important;
+	height: 1px !important;
+	padding: 0 !important;
+	margin: -1px !important;
+	overflow: hidden !important;
+	clip: rect(0, 0, 0, 0) !important;
+	white-space: nowrap !important;
+	border: 0 !important;
+	opacity: 0.01;
+}
+
+/* Bigger, easier-to-hit touch targets everywhere, on every screen size (helps on tablets too,
+   not just phones). */
+header select, header button,
+.slot-buttons button,
+#previewControls button {
+	min-height: 40px;
+	padding: 8px 12px !important;
+	font-size: 13px !important;
+}
+.tuning input {
+	min-height: 32px;
+	font-size: 12px !important;
+	padding: 4px 5px !important;
+}
+input[type="checkbox"] {
+	width: 20px !important;
+	height: 20px !important;
+}
+
+@media (max-width: 900px) {
+	/* The original 300px|1fr|340px grid needs 640px of fixed columns alone - doesn't fit a
+	   phone in portrait OR landscape, so stack everything into one scrollable column instead. */
+	body {
+		display: flex !important;
+		flex-direction: column;
+		height: auto;
+		min-height: 100vh;
+		min-height: 100dvh;
+		overflow-y: auto;
+	}
+	header {
+		flex-wrap: wrap;
+		row-gap: 8px;
+		padding: 10px;
+		position: sticky;
+		top: 0;
+		z-index: 10;
+	}
+	header h1 { flex: 1 0 100%; }
+	header #status { flex: 1 0 100%; font-size: 11px; }
+	#actionList {
+		border-right: none;
+		border-bottom: 1px solid #33384a;
+		max-height: 50vh;
+		order: 1;
+	}
+	#preview {
+		border-bottom: 1px solid #33384a;
+		order: 2;
+		padding: 12px;
+	}
+	#previewCanvas {
+		width: min(320px, 90vw);
+		height: min(320px, 90vw);
+	}
+	#slots {
+		border-left: none;
+		order: 3;
+	}
+	#uploadHint { order: 0; }
+}
+
+/* Landscape phones (short viewport height): trim the preview canvas so it doesn't push
+   everything else below the fold, and cap panel heights more aggressively. */
+@media (max-width: 900px) and (max-height: 500px) {
+	#previewCanvas { width: min(220px, 40vh); height: min(220px, 40vh); }
+	#actionList, #slots { max-height: 70vh; }
+}
+
+</style>
+</head>
+<body>
+
+	<header>
+		<h1>CHARACTER MAPPER</h1>
+		<select id="charPicker"></select>
+		<button id="loadBtn" class="primary">Load</button>
+		<button id="exportBtn">Export JSON</button>
+		<button id="importMovesetBtn" title="Load an existing moveset.json (e.g. this character's own real hand-tuned file) into the editor below, instead of only the crude auto-fill guess">Import moveset.json</button>
+		<input type="file" id="importMovesetInput" accept="application/json,.json" style="display:none;" />
+		<button id="boxToggle">Toggle Hitboxes</button>
+		<button id="testCharBtn" title="Play as the loaded character with real physics/knockback against a training dummy">▶ Test Character</button>
+		<span style="border-left:1px solid #33384a; height:24px;"></span>
+		<button id="uploadBtn" title="Required: {name}.air, sprite_atlas_{name}.png, sprite_atlas_{name}.csv&#10;Optional (adds taunt/movement/cancel hints): {name}.cns, {name}.cmd">Add character (upload files)</button>
+		<input type="file" id="uploadInput" multiple accept=".air,.cns,.cmd,.csv,.png" style="display:none;" />
+		<span id="status">Loading roster…</span>
+	</header>
+	<div id="uploadPanel" style="grid-column: 1 / -1; background:#1a1d28; border-bottom:1px solid #33384a; padding:10px 16px;">
+		<div id="uploadDropzone" class="upload-dropzone" data-empty-text="Drag &amp; drop character files here (any number at once, for one or several characters) - .air .png .csv .cns .cmd - or click to browse">
+			Drag &amp; drop character files here (any number at once, for one or several characters) — <b>.air .png .csv .cns .cmd</b> — or click to browse
+		</div>
+		<div id="uploadHint" style="font-size:10px; color:#888; margin-top:8px;">
+			Files can be dropped for one or multiple characters at once, in any order/batches - they're grouped by name automatically. Required per character:
+			<b style="color:#ccc;">name.air</b>, <b style="color:#ccc;">sprite_atlas_name.png</b>, <b style="color:#ccc;">sprite_atlas_name.csv</b> (all three needed for preview and hitboxes).
+			Optional: <b style="color:#ccc;">name.cns</b> + <b style="color:#ccc;">name.cmd</b> (adds auto-detected taunt/movement/cancel hints, same as the built-in roster gets from the offline CNS scanner).
+			Anything else (wrong extension, or a name that doesn't match the pattern above) is skipped and reported below instead of silently ignored.
+		</div>
+		<div id="uploadChecklist"></div>
+	</div>
+
+	<div id="actionList">
+		<input id="filterInput" placeholder="Filter by action # or search..." />
+		<label style="font-size:11px; color:#888; display:flex; gap:6px; align-items:center; margin-bottom:8px;">
+			<input type="checkbox" id="onlyHits" style="width:auto;" /> Only show actions with hitboxes
+		</label>
+		<div id="actionListInner"></div>
+	</div>
+
+	<div id="preview">
+		<canvas id="previewCanvas" width="360" height="360"></canvas>
+		<div id="previewInfo">No action selected</div>
+		<div id="previewControls">
+			<button id="playPause">Pause</button>
+			<button id="stepBack">◀ Frame</button>
+			<button id="stepFwd">Frame ▶</button>
+		</div>
+		<label style="font-size:11px; color:#888; display:flex; gap:6px; align-items:center;">
+			<input type="checkbox" id="holdLastFrameToggle" style="width:auto;" />
+			Hold on last frame instead of looping (check this for poses meant to be <em>held</em>, like crouch/guard - some animations are only a couple of quick "breathing" frames that flicker jarringly if actually looped for as long as a real block lasts)
+		</label>
+	</div>
+
+	<div id="avatarPanel" style="grid-column: 1 / -1; background:#1a1d28; border-bottom:1px solid #33384a; padding:10px 16px; display:flex; gap:14px; align-items:flex-start;">
+		<canvas id="avatarCanvas" width="120" height="128" style="background:#0b0c10; border:1px solid #33384a; border-radius:4px; image-rendering: pixelated;"></canvas>
+		<div style="flex:1; min-width:200px;">
+			<h3 style="margin:0 0 6px 0; font-size:12px; color:#ccc;">Avatar (character-select screen, 360×384)</h3>
+			<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
+				<button id="useFrameAsAvatarBtn">Use current preview frame</button>
+				<button id="avatarUploadBtn">Upload image instead</button>
+				<input type="file" id="avatarUploadInput" accept="image/png,image/jpeg,image/webp" style="display:none;" />
+				<button id="downloadAvatarBtn" disabled>Download avatar.png</button>
+				<button id="downloadIconBtn" disabled>Download icon.png (28×28)</button>
+			</div>
+			<div id="avatarHint" style="font-size:10px; color:#888; line-height:1.5;">
+				Step to the frame you want on the select screen (usually a clean standing/idle pose) with the animation
+				controls above, then click "Use current preview frame" - the sprite's opaque pixels are auto-cropped
+				and cover-fit into a fixed <b style="color:#ccc;">360&times;384</b> canvas (every character ships the
+				same portrait size, matching lite-fighter.html's select-screen card 1:1) instead of sitting in a sea of
+				padding. Or upload a separate reference image instead - it gets the same fixed-size treatment. Both
+				export files go under <b style="color:#ccc;">assets/{name}/</b>
+				alongside the sprite atlas - see lite-fighter.html's avatarImages/iconImages loaders.
+			</div>
+		</div>
+	</div>
+
+	<div id="slots"></div>
+
+	<div id="commandMovesPanel" style="grid-column: 1 / -1; background:#1a1d28; border-top:1px solid #33384a; padding:10px 16px;">
+		<h3 style="margin:0 0 6px 0; font-size:12px; color:#ccc;">Command Moves (motion-input Hyper combos)</h3>
+		<div id="commandMovesHint" style="font-size:10px; color:#888; margin-bottom:8px;">
+			Motion-input specials (e.g. quarter-circle-forward + a button) recognized by the engine's CommandBuffer off the same
+			held-direction state driving tilts/smashes - works from keyboard or the Xbox 360 stick/d-pad alike. Each entry needs its
+			own unique <b style="color:#ccc;">key</b> (used internally, never shown to players) and a real action number from this
+			character's own .air.
+		</div>
+		<div id="commandMovesList"></div>
+		<button id="addCommandMoveBtn" style="margin-top:6px;">+ Add command move</button>
+	</div>
+
+	<div id="summonsPanel" style="grid-column: 1 / -1; background:#1a1d28; border-top:1px solid #33384a; padding:10px 16px;">
+		<h3 style="margin:0 0 6px 0; font-size:12px; color:#ccc;">Summons (companion assist pool)</h3>
+		<div id="summonsHint" style="font-size:10px; color:#888; margin-bottom:8px;">
+			Optional character-specific companion pool (e.g. SpongeBob's Sandy/Squidward/Mr. Krabs) - rendered from THIS character's
+			own atlas, no separate sprite sheet needed. A character with no summons defined here simply has no summon move.
+		</div>
+		<div id="summonsBody"></div>
+	</div>
+
+<script>
+// [ASSETS baked-in blob removed - characters now load from assets/characters/<name>/ via fetch()]
+// [Offline CNS-scanner blob removed - it held pre-computed doubleJump/taunt/movement/cancel
+// hint data for the old 12-character crossover roster (cloudi/etna/halo/ivy/kosmos/lenneth/
+// linko/samus/soma/valky/x/neera), none of which ship anymore (see MOVESETS/CHARACTER_NAMES
+// above - SpongeBob-only now). scanReportPromise below already falls back gracefully to an
+// empty object when this constant is undefined, so a character with no offline scan (like
+// SpongeBob) just skips the auto-detected-hints step, same as it always did for a custom-
+// uploaded character.]
+
+</script>
+<script>
+try {
+
+// ===== js/atlas.js =====
+// atlas.js
+// Loads a sprite_atlas_*.csv + matching .png into an indexed table of
+// source-rect entries, keyed by [group][number]. JS port of lib/atlas.lua.
+//
+// CSV columns (header row present):
+//   spr_x, spr_y, spr_width, spr_height, spr_off_x, spr_off_y, spr_group, spr_no
+
+function trim(s) {
+	return s.replace(/^\s+|\s+$/g, "");
+}
+
+class Atlas {
+	constructor() {
+		this.image = null;
+		this.imgW = 0;
+		this.imgH = 0;
+		this.sprites = {}; // sprites[group][number] = { x, y, w, h, offX, offY }
+		this.textureScale = 1; // set >1 when the PNG itself is stored smaller than the csv's coordinate units imply (see build script)
+	}
+
+	/** Load an atlas from a csv URL + png URL. */
+	static async load(csvPath, pngPath, textureScale = 1) {
+		const csvText = await fetch(csvPath).then((r) => r.text());
+		const image = await loadImage(pngPath);
+		return Atlas._build(csvText, image, textureScale);
+	}
+
+	/** Load an atlas from already-in-memory csv text + a png src (URL or data: URI) - no fetch. Used for the standalone build where everything is embedded in the page. */
+	static async loadInline(csvText, pngSrc, textureScale = 1) {
+		const image = await loadImage(pngSrc);
+		return Atlas._build(csvText, image, textureScale);
+	}
+
+	static _build(csvText, image, textureScale = 1) {
+		const self = new Atlas();
+
+		self.image = image;
+		self.imgW = image.width;
+		self.imgH = image.height;
+		self.textureScale = textureScale;
+
+		const lines = csvText.split(/\r?\n/);
+		let first = true;
+		for (const rawLine of lines) {
+			const line = trim(rawLine);
+			if (line === "") continue;
+			if (first) {
+				first = false; // header row
+				continue;
+			}
+			const cols = line.split(",").map(trim);
+			if (cols.length < 8) continue;
+			const [x, y, w, h, offX, offY, group, no] = cols.map(Number);
+			if ([x, y, w, h, group, no].some((n) => Number.isNaN(n))) continue;
+
+			self.sprites[group] = self.sprites[group] || {};
+			self.sprites[group][no] = { x, y, w, h, offX: offX || 0, offY: offY || 0 };
+		}
+
+		return self;
+	}
+
+	/** Fetch sprite entry for a given group/number, or undefined if not present. */
+	get(group, number) {
+		const g = this.sprites[group];
+		return g ? g[number] : undefined;
+	}
+
+	/**
+	 * Draw a single sprite so that its MUGEN offset point (offX, offY) lands
+	 * exactly at world position (x, y) — matches love.graphics.draw's
+	 * origin-offset semantics from the Love2D version.
+	 */
+	draw(ctx, group, number, x, y, flipH, flipV, scale = 1) {
+		const spr = this.get(group, number);
+		if (!spr) return false;
+
+		// textureScale compensates for the PNG being stored smaller than its own coordinate units
+		// imply (e.g. a 2x downscaled-and-dithered atlas) - inflate the draw scale to match, while
+		// hitboxes elsewhere stay entirely keyed to the original .air units and never see this.
+		const totalScale = scale * this.textureScale;
+		const sx = flipH ? -totalScale : totalScale;
+		const sy = flipV ? -totalScale : totalScale;
+
+		// Sprites are packed edge-to-edge (little/no gutter) in these atlases. At a non-integer
+		// draw scale, floating-point rounding at the source rect's exact boundary can sample one
+		// row/column into whatever sprite happens to be packed next to it - a classic canvas
+		// texture-atlas bleeding bug, not anything actually present in the source PNG. Insetting
+		// the sampled rect by half a pixel on every edge keeps sampling strictly inside this
+		// sprite's own pixels regardless of scale.
+		const inset = 0.5;
+		const ix = Math.min(inset, spr.w / 4);
+		const iy = Math.min(inset, spr.h / 4);
+
+		ctx.save();
+		ctx.translate(x, y);
+		ctx.scale(sx, sy);
+		ctx.drawImage(
+			this.image,
+			spr.x + ix,
+			spr.y + iy,
+			spr.w - ix * 2,
+			spr.h - iy * 2,
+			-spr.offX + ix,
+			-spr.offY + iy,
+			spr.w - ix * 2,
+			spr.h - iy * 2
+		);
+		ctx.restore();
+		return true;
+	}
+}
+
+function loadImage(src) {
+	return new Promise((resolve, reject) => {
+		const img = new Image();
+		img.onload = () => resolve(img);
+		img.onerror = reject;
+		img.src = src;
+	});
+}
+
+
+// ===== js/air_parser.js =====
+// air_parser.js
+// Parses MUGEN .air animation files into plain JS objects.
+// This is a straight port of the Love2D project's lib/air_parser.lua —
+// same file format, same output shape, just JS instead of Lua.
+//
+// Result shape:
+// actions = {
+//   [actionNumber]: {
+//     loopstart: <frame index, 1-based>,
+//     frames: [
+//       {
+//         group, image,        // sprite lookup key into the atlas
+//         x, y,                 // draw offset
+//         time,                 // duration in ticks (-1 = hold forever)
+//         flipH, flipV,
+//         clsn1: [[x1,y1,x2,y2], ...],  // attack (hit) boxes, active this frame
+//         clsn2: [[x1,y1,x2,y2], ...],  // vulnerable (hurt) boxes, active this frame
+//       },
+//       ...
+//     ]
+//   }
+// }
+
+function trim(s) {
+	return s.replace(/^\s+|\s+$/g, "");
+}
+
+// Parses a frame data line like: "0,0, 0,0, 7" or "3,1, 0,0, 4, H"
+function parseFrameLine(line) {
+	const semi = line.indexOf(";");
+	if (semi !== -1) line = line.slice(0, semi);
+	line = trim(line);
+	if (line === "") return null;
+
+	const parts = line.split(",").map(trim).filter((p) => p !== "");
+	if (parts.length < 5) return null;
+
+	const group = Number(parts[0]);
+	const image = Number(parts[1]);
+	const x = Number(parts[2]);
+	const y = Number(parts[3]);
+	const time = Number(parts[4]);
+	if ([group, image, x, y, time].some((n) => Number.isNaN(n))) return null;
+
+	let flipH = false;
+	let flipV = false;
+	if (parts[5]) {
+		const f = parts[5].toUpperCase();
+		if (f.includes("H")) flipH = true;
+		if (f.includes("V")) flipV = true;
+	}
+
+	return { group, image, x, y, time, flipH, flipV, clsn1: [], clsn2: [] };
+}
+
+// Parses "Clsn1: 2" / "Clsn2Default: 1" style header lines.
+function parseClsnHeader(line) {
+	const m = line.match(/^\s*[Cc]lsn([12])(\w*)\s*:\s*(\d+)/);
+	if (!m) return null;
+	return { kind: "clsn" + m[1], isDefault: m[2].toLowerCase() === "default", count: Number(m[3]) };
+}
+
+// Parses "Clsn1[0] = -10, -42, 13, 1"
+function parseClsnBox(line) {
+	const m = line.match(/[Cc]lsn[12]\[(\d+)\]\s*=\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)/);
+	if (!m) return null;
+	return { idx: Number(m[1]), box: [Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5])] };
+}
+
+/**
+ * Parse the full contents of a .air file (already read into a string).
+ * @param {string} text
+ * @returns {object} actions table, as described above
+ */
+function parseAir(text) {
+	const actions = {};
+	let current = null;
+	let currentNum = null;
+	let currentFrames = null;
+	let defaultClsn1 = [];
+	let defaultClsn2 = [];
+	let pendingClsn1 = null;
+	let pendingClsn2 = null;
+	let buildingTarget = null; // whichever table is currently receiving Clsn[n] = ... lines
+
+	// Commits the block just finished (if any) into `actions`, once its full frame list is known -
+	// deferred like this (rather than assigning into `actions` the instant "[Begin Action N]" is
+	// seen) so the guard below can see the WHOLE new block before deciding whether it's allowed to
+	// replace an earlier one. Some amateur/ported .air files (this SpongeBob source included)
+	// accidentally reuse an action number a second time for an unrelated one-off "invisible helper"
+	// animation (a single group=-1/image=-1 frame, sometimes literally commented "Inviso_frame!" -
+	// clearly meant for some other purpose, just mis-numbered by whoever authored it) - naively
+	// letting last-definition-wins apply here would silently blank out a real, already-parsed
+	// animation (e.g. this file's action 0 "Stand" - its real 20-frame breathing-idle loop gets
+	// redefined twice more later in the file as that trivial blank stub, which without this guard
+	// made the character completely invisible while standing still). A later redefinition only
+	// replaces an existing non-blank entry if it ALSO has real (non-blank) content - otherwise the
+	// earlier, real animation for that number is kept. (Kept in sync with lite-fighter.html's own
+	// parseAir - see that file's comment for the full story.)
+	function commitCurrent() {
+		if (current === null) return;
+		const existing = actions[currentNum];
+		const isTrivialBlank = current.frames.length > 0 &&
+			current.frames.every((f) => f.group === -1 || f.image === -1);
+		const existingHasContent = existing && existing.frames.some((f) => f.group !== -1 && f.image !== -1);
+		if (!(existingHasContent && isTrivialBlank)) {
+			actions[currentNum] = current;
+		}
+	}
+
+	const lines = text.split(/\r?\n/);
+
+	for (const rawLine of lines) {
+		const trimmed = trim(rawLine);
+		if (trimmed.startsWith(";")) continue;
+
+		const actionMatch = trimmed.match(/^\[\s*[Bb]egin\s+[Aa]ction\s+(-?\d+)\s*\]/);
+		if (actionMatch) {
+			commitCurrent();
+			currentNum = Number(actionMatch[1]);
+			current = { loopstart: 1, frames: [] };
+			currentFrames = current.frames;
+			defaultClsn1 = [];
+			defaultClsn2 = [];
+			pendingClsn1 = null;
+			pendingClsn2 = null;
+			buildingTarget = null;
+			continue;
+		}
+
+		if (!current) continue;
+
+		if (/^[Ll]oopstart/.test(trimmed)) {
+			current.loopstart = currentFrames.length + 1;
+			continue;
+		}
+
+		const header = parseClsnHeader(trimmed);
+		if (header) {
+			const fresh = header.count === 0 ? [] : [];
+			if (header.isDefault) {
+				if (header.kind === "clsn1") defaultClsn1 = fresh;
+				else defaultClsn2 = fresh;
+				buildingTarget = header.count > 0 ? fresh : null;
+			} else {
+				if (header.kind === "clsn1") pendingClsn1 = fresh;
+				else pendingClsn2 = fresh;
+				buildingTarget = header.count > 0 ? fresh : null;
+			}
+			continue;
+		}
+
+		const clsnBox = parseClsnBox(trimmed);
+		if (clsnBox) {
+			if (buildingTarget) buildingTarget[clsnBox.idx] = clsnBox.box;
+			continue;
+		}
+
+		const frame = parseFrameLine(trimmed);
+		if (frame) {
+			frame.clsn1 = pendingClsn1 || defaultClsn1;
+			frame.clsn2 = pendingClsn2 || defaultClsn2;
+			currentFrames.push(frame);
+		}
+	}
+	commitCurrent(); // the last block in the file never hit another "[Begin Action]" to trigger a commit
+
+	return actions;
+}
+
+/** Convenience: fetch and parse a .air file from a URL. */
+async function loadAir(path) {
+	const res = await fetch(path);
+	const text = await res.text();
+	return parseAir(text);
+}
+
+
+// ===== js/moves.js =====
+// moves.js
+// Per-character move tables. Each entry maps a logical move slot (light,
+// medium, heavy, special) to a MUGEN action number that already has real
+// Clsn1 (hitbox) data in that character's .air file, plus Smash-style combat
+// tuning for that specific move. Action numbers differ between characters
+// (every MUGEN author numbers their own animations), so this indirection is
+// what lets "press light attack" mean something sensible for both cast
+// members instead of hard-coding one shared action id.
+//
+// Tuning fields:
+//   action      - .air action number to play
+//   damage      - percent added on hit
+//   kbBase      - knockback speed (px/s) at 0% opponent damage
+//   kbGrowth    - extra px/s of knockback per point of opponent percent
+//   angle       - launch angle in degrees above horizontal
+//   priority    - used to resolve "player pressed two attack buttons at once"
+//                 and by the AI when picking a move (higher = commits harder)
+
+const MOVESETS = {
+	// Every other character has been removed from the roster (per explicit request) - SpongeBob is
+	// the first, most-fleshed-out character, and the only one shipped/loaded now. The legacy 6-slot
+	// entry below still exists purely as a fallback if a moveset.json ever fails to fetch - in the
+	// normal case SpongeBob's real 18-slot assets/characters/spongebob/moveset.json is what actually
+	// drives the move list/editor; this table is never consulted for him.
+	spongebob: {
+		light:   { action: 200, damage: 5,  kbBase: 240, kbGrowth: 5.5, angle: 25, priority: 0 },
+		medium:  { action: 210, damage: 8,  kbBase: 300, kbGrowth: 6.5, angle: 35, priority: 1 },
+		heavy:   { action: 240, damage: 13, kbBase: 380, kbGrowth: 8.0, angle: 40, priority: 2 },
+		special: { action: 250, damage: 17, kbBase: 480, kbGrowth: 9.5, angle: 50, priority: 3 },
+		crouch:  { action: 400, damage: 9,  kbBase: 320, kbGrowth: 7.0, angle: 20, priority: 1 },
+		air:     { action: 600, damage: 7,  kbBase: 280, kbGrowth: 6.0, angle: 30, priority: 1 },
+	},
+};
+
+// Display names for the roster (used by the character-select screen). SpongeBob-only now.
+const CHARACTER_NAMES = {
+	spongebob: "SpongeBob",
+};
+
+// Per-character size correction, multiplied into the base draw scale - left empty for SpongeBob
+// (no localcoord override in his files; matches litefighter.html's own SIZE_SCALE, which this
+// mapper's Test Match preview and export both need to stay consistent with).
+const SIZE_SCALE = {};
+
+/** Ordered list of standing-attack move slots, used when scanning input for "which attack was pressed". */
+const MOVE_SLOTS = ["special", "heavy", "medium", "light"];
+
+
+// ===== tools/mapper.js =====
+
+
+
+
+// Universal base-state action numbers. The core six (idle/crouch/walk/jump/hit) are verified
+// to exist across all 12 characters and are the same numbers the live game already relies on
+// (see character.js's own ACTION table). The rest (dash/jumpSquat/guard/getUp) come from the
+// standard Elecbyte/KFM animation template that this whole roster was authored on top of
+// (confirmed by the matching "; comment" headers above each [Begin Action N] block in every
+// character's own .air file - not guessed, read directly off each character's own air data).
+// Every entry is still gated by `if (actions[num])` at use time, so a character that deviates
+// from the template just silently doesn't get that slot auto-filled instead of getting a wrong
+// animation assigned - matches the project rule of never assigning an unverified action number.
+// A slot may list an array of candidates in priority order (first one the character actually
+// has wins) for cases where the template itself isn't 100% uniform across the roster.
+const UNIVERSAL_ACTIONS = {
+	idle: 0,
+	crouch: 10, // held crouch pose - matches ACTION.CROUCH in character.js, the number the live engine already uses
+	walkFwd: 20,
+	walkBack: 21,
+	dash: 100, // "Run forwards" in the template
+	jumpSquat: 40, // "Jump start frame" - the pre-jump crouch
+	jumpUp: 41,
+	jumpFall: 44,
+	guard: 130, // "GUARD (stand)" - the held block pose
+	hitStand: 5030,
+	hitAir: 5030,
+	getUp: [5100, 5090], // template's "get up from lying" states (face-up / face-down); low-confidence, kept last-priority on purpose
+};
+
+// Maps the old 6-slot scheme (still in moves.js as each character's MOVESETS entry) onto
+// the new slot names, so a character's already-verified moves show up pre-filled instead of
+// making you redo work we've already done and confirmed correct.
+const LEGACY_SLOT_MAP = {
+	light: "jab",
+	medium: "ftilt",
+	heavy: "fsmash",
+	special: "specialN",
+	crouch: "crouchAttack",
+	air: "nair",
+};
+
+let scanReport = null;
+
+// ===== Move slot definitions =====
+// Mirrors the control doc: basic poses, grounded normals, aerials, and specials. No grab game
+// or ledge slots - this game doesn't have those mechanics (see note by the Specials group below).
+// Each category gets sensible starting tuning numbers; all editable per-slot after assignment.
+const CATEGORY_DEFAULTS = {
+	light: { damage: 5, kbBase: 240, kbGrowth: 5.5, angle: 25, priority: 0 },
+	medium: { damage: 9, kbBase: 320, kbGrowth: 7.0, angle: 30, priority: 1 },
+	smash: { damage: 16, kbBase: 460, kbGrowth: 9.5, angle: 40, priority: 2 },
+	air: { damage: 7, kbBase: 280, kbGrowth: 6.0, angle: 30, priority: 1 },
+	special: { damage: 14, kbBase: 420, kbGrowth: 8.0, angle: 40, priority: 3 },
+};
+
+// Standardized Smash-style attack archetypes. Purely descriptive/classification metadata on a
+// slot's assignment (does not change tuning-field math on its own) - the point is to tag *which*
+// universal attack-behavior function a given animation should run through once that engine work
+// happens (a "Smash Attack" charges then commits, a "Projectile" spawns a traveling hitbox and
+// lets the character move again, a "Counter" watches for an incoming hit instead of attacking on
+// startup, etc.) rather than writing one-off per-move logic for all 12+ characters by hand.
+const ATTACK_TYPES = [
+	"Jab", "Tilt", "Smash Attack", "Dash Attack", "Aerial", "Sweep", "Launcher", "Spike/Meteor",
+	"Projectile", "Beam/Laser", "Thrown Weapon", "Explosive", "Grab", "Throw", "Command Grab",
+	"Counter", "Reflector", "Shield Breaker", "Multi-Hit", "Charge Attack", "Dive Attack",
+	"Recovery", "Rush Attack", "Trap", "Summon", "Buff/Debuff", "Final/Super",
+];
+
+// Starting guess per slot, purely to save re-picking the obvious choice every time - always
+// editable per-assignment via the dropdown, never authoritative.
+const DEFAULT_ATTACK_TYPE_BY_SLOT = {
+	jab: "Jab",
+	ftilt: "Tilt", utilt: "Tilt", dtilt: "Tilt",
+	dashAttack: "Dash Attack",
+	crouchAttack: "Tilt",
+	fsmash: "Smash Attack", usmash: "Smash Attack", dsmash: "Smash Attack",
+	nair: "Aerial", fair: "Aerial", uair: "Launcher", dair: "Spike/Meteor", bair: "Aerial",
+	specialN: "Projectile", specialS: "Rush Attack", specialU: "Recovery", specialD: "Trap",
+};
+
+const SLOT_DEFS = [
+	{ key: "idle", label: "Idle / Stand", pose: true, group: "Basic Poses" },
+	{ key: "walkFwd", label: "Walk Forward", pose: true, group: "Basic Poses" },
+	{ key: "walkBack", label: "Walk Backward", pose: true, group: "Basic Poses" },
+	{ key: "dash", label: "Dash / Run", pose: true, group: "Basic Poses" },
+	{ key: "crouch", label: "Crouch (held)", pose: true, group: "Basic Poses" },
+	{ key: "jumpSquat", label: "Jump Squat (pre-jump crouch)", pose: true, group: "Basic Poses" },
+	{ key: "jumpUp", label: "Jump Rising", pose: true, group: "Basic Poses" },
+	{ key: "jumpFall", label: "Jump Falling", pose: true, group: "Basic Poses" },
+	{ key: "guard", label: "Guard / Shield Pose", pose: true, group: "Basic Poses" },
+	{ key: "taunt", label: "Taunt", pose: true, group: "Basic Poses" },
+	{ key: "hitStand", label: "Hit Reaction (grounded)", pose: true, group: "Basic Poses" },
+	{ key: "hitAir", label: "Hit Reaction (airborne)", pose: true, group: "Basic Poses" },
+	{ key: "getUp", label: "Knockdown Get-up", pose: true, group: "Basic Poses" },
+
+	{ key: "jab", label: "Jab", category: "light", group: "Grounded Normals" },
+	{ key: "ftilt", label: "Forward Tilt", category: "light", group: "Grounded Normals" },
+	{ key: "utilt", label: "Up Tilt", category: "light", group: "Grounded Normals" },
+	{ key: "dtilt", label: "Down Tilt", category: "light", group: "Grounded Normals" },
+	{ key: "dashAttack", label: "Dash Attack", category: "medium", group: "Grounded Normals" },
+	{ key: "crouchAttack", label: "Crouch Attack", category: "light", group: "Grounded Normals" },
+
+	{ key: "fsmash", label: "Forward Smash", category: "smash", group: "Smash Attacks" },
+	{ key: "usmash", label: "Up Smash", category: "smash", group: "Smash Attacks" },
+	{ key: "dsmash", label: "Down Smash", category: "smash", group: "Smash Attacks" },
+
+	{ key: "nair", label: "Neutral Air", category: "air", group: "Aerials" },
+	{ key: "fair", label: "Forward Air", category: "air", group: "Aerials" },
+	{ key: "uair", label: "Up Air", category: "air", group: "Aerials" },
+	{ key: "dair", label: "Down Air", category: "air", group: "Aerials" },
+	{ key: "bair", label: "Back Air", category: "air", group: "Aerials" },
+
+	{ key: "specialN", label: "Neutral Special", category: "special", group: "Specials" },
+	{ key: "specialS", label: "Side Special", category: "special", group: "Specials" },
+	{ key: "specialU", label: "Up Special (Recovery)", category: "special", group: "Specials" },
+	{ key: "specialD", label: "Down Special", category: "special", group: "Specials" },
+	// No Grab Game group: this game has no grab/throw mechanic and no ledges/ledge-grabs (see
+	// PROJECT_HANDOFF - platforms exist but you drop through them with crouch, there are no
+	// cliffs, and the only damage source off the stage's own ground layer is flying off-screen).
+	// Deliberately not adding placeholder slots for mechanics the game doesn't have.
+];
+
+const PROJECTILE_DEFAULTS = {
+	speed: 340, offsetX: 60, offsetY: 0, life: 1.2,
+	// Preferred art path: a real flying-object animation straight out of THIS character's own
+	// .air (e.g. a Helper/Projectile's real anim number, like SpongeBob's Krabby Patty Gun using
+	// action 1002) - null means "no real action wired up yet". Takes priority over the uploaded
+	// image below whenever set (see litefighter.html's Projectile constructor).
+	bodyAction: null,
+	// Real per-move hit/miss spark action numbers (also from this character's own .air) - null
+	// falls back to the move's own top-level hitSpark, then to the engine's generic spark.
+	hitSparkAction: null,
+	missSparkAction: null,
+	// Visual for the traveling hitbox itself, independent of the character's own atlas - either a
+	// single sprite or an animation frame sheet (every frame on the sheet sharing the same
+	// frameW x frameH cell, laid out left-to-right then wrapping - a plain uniform-grid strip).
+	// image stays null (no upload) until set via the picker below; the game falls back to a small
+	// drawn effect when it's empty so a projectile move still works with zero art. Only used when
+	// bodyAction above is null - kept for moves with no real in-.air flying-object frame to point to.
+	image: null, frameW: 32, frameH: 32, frameCount: 1, fps: 12,
+};
+
+// Sweep/dash attacks: the character itself travels a distance while a hitbox rides along, instead
+// of a stationary swing - e.g. an up-sweep that can carry the attacker onto a higher platform, a
+// down-sweep that crashes down onto a grounded opponent, or a side-sweep that dashes fwd/back.
+const SWEEP_DEFAULTS = {
+	direction: "side", // "up" | "down" | "side" - "side" always travels toward the character's current facing (or backward if reverse is checked)
+	distance: 260, // world units traveled over the move's duration
+	speed: 620, // px/s while the sweep is actively traveling
+	reverse: false, // side sweeps only: travel backward (away from facing) instead of forward - e.g. a backflip dash
+	crashDown: false, // down sweeps only: the character free-falls (ignoring normal gravity cap) then the hitbox is only active on/near impact - "crash down on opponent"
+	reachPlatform: false, // up sweeps only: allowed to carry the character up through/onto a platform it wouldn't normally reach with a jump alone
+};
+
+// ===== Custom / uploaded characters =====
+// key -> { name, air, csv, pngDataUrl, cns, cmd }. Populated purely client-side from the
+// upload control; never touches ASSETS/the fetch paths the built-in roster uses.
+const customCharacters = {};
+
+// ===== State =====
+let atlas = null;
+let actions = null;
+let currentCharKey = null;
+let selectedAction = null;
+let previewFrameIndex = 0;
+// The chosen avatar image for the character-select screen, held as an offscreen canvas so both
+// the "use current frame" (cropped from the atlas) and "upload image" (used as-is) paths feed
+// the same preview/export code. null until the user picks one for the loaded character.
+let avatarSourceCanvas = null;
+let previewTimer = 0;
+let playing = true;
+let holdLastFrame = false; // when true, preview settles on the final frame instead of looping - lets you check how a pose will actually look when the engine holds it (e.g. crouch/guard)
+let showBoxes = false;
+const assignments = {}; // slotKey -> { action, damage, kbBase, kbGrowth, angle, ...sounds/hitSpark/guardSpark/stun/projectile/sweep }
+// Motion-input "combo" specials (moveset.json's commandMoves.moves[]) - each needs its own unique
+// `key` (never shown to players, just an internal lookup id distinct from the fixed SLOT_DEFS
+// names) plus a real action number and the same tuning/sounds/hitSpark fields a normal attack has.
+let commandMoves = [];
+// commandMoves.note / summons.note - free-text human documentation on the container object itself
+// (distinct from any one move's own _note), preserved round-trip through import/export even though
+// the editor has no UI for authoring it (only for not silently dropping it on a re-export).
+let commandMovesNote = "";
+// Character-specific companion assist pool (moveset.json's summons{}) - null means this character
+// has no summon move at all, which is a completely valid, common case (see trySummon() in
+// lite-fighter.html: no summonDef -> summon input is simply a no-op for that character).
+let summons = null;
+let summonsNote = "";
+// Non-attack sound cues (moveset.json's poseSounds{}) - jump/hurt/taunt etc, not tied to any one
+// move slot. Kept as a flat key -> [group, index] map, same shape as a move's own sounds{} fields.
+let poseSounds = {};
+
+const DEFAULT_COMMAND_MOVE = () => ({
+	key: "", label: "", action: null, type: "melee", attackType: "Final/Super",
+	damage: 20, kbBase: 500, kbGrowth: 9.5, angle: 40, priority: 3,
+	command: { motion: "qcf", button: "special" },
+});
+const DEFAULT_SUMMON_ENTRY = () => ({
+	name: "", attackAction: null, damage: 14, kbBase: 400, kbGrowth: 7.5, angle: 35,
+});
+
+// ===== DOM refs =====
+const charPicker = document.getElementById("charPicker");
+const loadBtn = document.getElementById("loadBtn");
+const exportBtn = document.getElementById("exportBtn");
+const importMovesetBtn = document.getElementById("importMovesetBtn");
+const importMovesetInput = document.getElementById("importMovesetInput");
+const boxToggle = document.getElementById("boxToggle");
+const statusEl = document.getElementById("status");
+const actionListInner = document.getElementById("actionListInner");
+const filterInput = document.getElementById("filterInput");
+const onlyHits = document.getElementById("onlyHits");
+const previewCanvas = document.getElementById("previewCanvas");
+const pctx = previewCanvas.getContext("2d");
+pctx.imageSmoothingEnabled = false;
+const previewInfo = document.getElementById("previewInfo");
+const playPauseBtn = document.getElementById("playPause");
+const slotsEl = document.getElementById("slots");
+const uploadBtn = document.getElementById("uploadBtn");
+const uploadInput = document.getElementById("uploadInput");
+const uploadHint = document.getElementById("uploadHint");
+const uploadPanel = document.getElementById("uploadPanel");
+const uploadDropzone = document.getElementById("uploadDropzone");
+const uploadChecklistEl = document.getElementById("uploadChecklist");
+const avatarCanvas = document.getElementById("avatarCanvas");
+const actx = avatarCanvas.getContext("2d");
+const useFrameAsAvatarBtn = document.getElementById("useFrameAsAvatarBtn");
+const avatarUploadBtn = document.getElementById("avatarUploadBtn");
+const avatarUploadInput = document.getElementById("avatarUploadInput");
+const downloadAvatarBtn = document.getElementById("downloadAvatarBtn");
+const downloadIconBtn = document.getElementById("downloadIconBtn");
+const testCharBtn = document.getElementById("testCharBtn");
+const commandMovesList = document.getElementById("commandMovesList");
+const addCommandMoveBtn = document.getElementById("addCommandMoveBtn");
+const summonsBody = document.getElementById("summonsBody");
+
+for (const key of Object.keys(CHARACTER_NAMES)) {
+	const opt = document.createElement("option");
+	opt.value = key;
+	opt.textContent = CHARACTER_NAMES[key];
+	charPicker.appendChild(opt);
+}
+
+let scanReportPromise = (async () => {
+	if (typeof SCAN_REPORT !== "undefined") {
+		scanReport = SCAN_REPORT;
+	} else {
+		try {
+			scanReport = await fetch("./cns_scan_report.json").then((r) => r.json());
+		} catch {
+			scanReport = {};
+		}
+	}
+})();
+
+function actionHasHit(action) {
+	return action.frames.some((f) => f.clsn1 && f.clsn1.length > 0);
+}
+
+// ===== Pixel-perfect fallback hitboxes =====
+// For animations with no authored Clsn1 (MUGEN hitbox) data - poses reused as attacks, a
+// character's own move that never got real hitbox frames, uploaded characters with an .air but
+// no verified Clsn1 - derive a hitbox straight from the sprite's own opaque pixels instead of
+// leaving the move with no hitbox at all or forcing someone to hand-place a guessed box. Produces
+// one horizontal span per pixel row (not just a bounding rect), in the SAME coordinate space
+// Clsn boxes already use (relative to the sprite's MUGEN offset point, i.e. what Atlas.draw()
+// treats as (0,0)) - so this can sit right next to real Clsn1 data everywhere it's consumed.
+const alphaSpanCache = new Map(); // "group:number" -> array of {y, x1, x2} | null (null = fully transparent frame)
+let _maskCanvas = null, _maskCtx = null;
+
+function getSpriteAlphaSpans(atlasRef, group, number, alphaThreshold = 24) {
+	const cacheKey = `${group}:${number}`;
+	if (alphaSpanCache.has(cacheKey)) return alphaSpanCache.get(cacheKey);
+
+	const spr = atlasRef.get(group, number);
+	if (!spr || spr.w <= 0 || spr.h <= 0) {
+		alphaSpanCache.set(cacheKey, null);
+		return null;
+	}
+
+	if (!_maskCanvas) {
+		_maskCanvas = document.createElement("canvas");
+		_maskCtx = _maskCanvas.getContext("2d", { willReadFrequently: true });
+	}
+	_maskCanvas.width = spr.w;
+	_maskCanvas.height = spr.h;
+	_maskCtx.clearRect(0, 0, spr.w, spr.h);
+	_maskCtx.drawImage(atlasRef.image, spr.x, spr.y, spr.w, spr.h, 0, 0, spr.w, spr.h);
+
+	let data;
+	try {
+		data = _maskCtx.getImageData(0, 0, spr.w, spr.h).data;
+	} catch (err) {
+		// Canvas got tainted (e.g. a cross-origin fetch build without proper CORS headers) - fail
+		// closed to "no auto hitbox" rather than throwing and breaking the whole preview/export.
+		alphaSpanCache.set(cacheKey, null);
+		return null;
+	}
+
+	const spans = [];
+	for (let py = 0; py < spr.h; py++) {
+		let x1 = -1, x2 = -1;
+		const rowStart = py * spr.w * 4;
+		for (let px = 0; px < spr.w; px++) {
+			const alpha = data[rowStart + px * 4 + 3];
+			if (alpha >= alphaThreshold) {
+				if (x1 === -1) x1 = px;
+				x2 = px;
+			}
+		}
+		if (x1 !== -1) {
+			// Convert local sprite pixel coords to the same anchor-relative space Clsn1/Clsn2 boxes
+			// use (see Atlas.draw(): draw-space x = localPx - offX, y = localPy - offY).
+			spans.push({ y: py - spr.offY, x1: x1 - spr.offX, x2: x2 - spr.offX });
+		}
+	}
+	const result = spans.length ? spans : null;
+	alphaSpanCache.set(cacheKey, result);
+	return result;
+}
+
+/** Auto hitbox for one action's frames - only computed for frames that have no real Clsn1. Returns null per-frame where the sprite is fully transparent (nothing to hit with) or Clsn1 already exists (real data wins, always). */
+function computeAutoHitboxFrames(atlasRef, action) {
+	return action.frames.map((f) => {
+		if (f.clsn1 && f.clsn1.length > 0) return null; // real authored data always wins
+		return getSpriteAlphaSpans(atlasRef, f.group, f.image);
+	});
+}
+
+// Parses a full moveset.json's contents into the editor's own live state (assignments/
+// commandMoves/summons/poseSounds), overwriting whatever's currently there. Shared by the
+// built-in roster's auto-load-on-Load path and the explicit "Import moveset.json" button, so a
+// character's real, already-hand-tuned file always wins over the crude UNIVERSAL_ACTIONS/
+// LEGACY_SLOT_MAP auto-fill guess instead of you having to redo work that's already done.
+function applyMoveset(data) {
+	if (!data || typeof data !== "object") return false;
+	let applied = false;
+	if (data.moves && typeof data.moves === "object") {
+		for (const k of Object.keys(assignments)) delete assignments[k];
+		for (const [slotKey, move] of Object.entries(data.moves)) {
+			assignments[slotKey] = { ...move };
+		}
+		applied = true;
+	}
+	if (data.commandMoves && Array.isArray(data.commandMoves.moves)) {
+		commandMoves = data.commandMoves.moves.map((m) => ({ ...m, command: { ...(m.command || DEFAULT_COMMAND_MOVE().command) } }));
+		commandMovesNote = typeof data.commandMoves.note === "string" ? data.commandMoves.note : "";
+		applied = true;
+	}
+	if (data.summons && typeof data.summons === "object") {
+		const { note, ...summonsRest } = data.summons;
+		summons = {
+			...summonsRest,
+			sounds: { ...(data.summons.sounds || {}) },
+			pool: Array.isArray(data.summons.pool) ? data.summons.pool.map((p) => ({ ...p, sounds: { ...(p.sounds || {}) } })) : [],
+		};
+		summonsNote = typeof note === "string" ? note : "";
+		applied = true;
+	}
+	if (data.poseSounds && typeof data.poseSounds === "object") {
+		poseSounds = { ...data.poseSounds };
+		applied = true;
+	}
+	return applied;
+}
+
+async function loadCharacter(key) {
+	const displayName = CHARACTER_NAMES[key] || (customCharacters[key] && customCharacters[key].name) || key;
+	statusEl.textContent = `Loading ${displayName}...`;
+	await scanReportPromise;
+	let base = null;
+	let realMovesetLoaded = false;
+	if (customCharacters[key]) {
+		const custom = customCharacters[key];
+		atlas = await Atlas.loadInline(custom.csv, custom.pngDataUrl);
+		actions = parseAir(custom.air);
+		// Merge in a client-side CNS/CMD scan (same heuristics as the offline python scanner:
+		// taunt-command detection, VelSet/PosAdd movement, ChangeState+movehit/moveguarded
+		// cancel patterns) so uploaded characters get the same hints/auto-taunt as the built-in
+		// roster, if - and only if - both files were uploaded.
+		scanReport = scanReport || {};
+		scanReport[key] = custom.cns ? scanCnsText(custom.cns, custom.cmd || "") : null;
+	} else {
+		// This tool sits directly alongside assets/ (same as lite-fighter.html), not one directory
+		// below it - a stray leading "../" here (fixed) would 404 every real character load.
+		base = `assets/characters/${key}`;
+		const [airText, loadedAtlas] = await Promise.all([
+			fetch(`${base}/${key}.air`).then((r) => r.text()),
+			Atlas.load(`${base}/sprite_atlas_${key}.csv`, `${base}/sprite_atlas_${key}.png`),
+		]);
+		atlas = loadedAtlas;
+		actions = parseAir(airText);
+	}
+	currentCharKey = key;
+	selectedAction = null;
+	for (const k of Object.keys(assignments)) delete assignments[k];
+	commandMoves = [];
+	commandMovesNote = "";
+	summons = null;
+	summonsNote = "";
+	poseSounds = {};
+	// A new character has no avatar chosen yet - each character needs its own pick, there's no
+	// sane default to carry over from whichever character was loaded before it.
+	avatarSourceCanvas = null;
+	drawAvatarPreview();
+
+	prefillFromExisting(key);
+
+	// Built-in roster characters may already ship a real, hand-tuned moveset.json (same file
+	// lite-fighter.html itself fetches at match start) - load it straight into the editor when
+	// present so it's not just exportable but genuinely editable, instead of only ever seeing the
+	// crude auto-fill guess above. A missing file (character has none yet) is not an error.
+	if (base) {
+		try {
+			const res = await fetch(`${base}/moveset.json`);
+			if (res.ok) realMovesetLoaded = applyMoveset(await res.json());
+		} catch (err) {
+			/* no real moveset.json for this character yet - the auto-fill prefill above stands */
+		}
+	}
+
+	renderActionList();
+	renderSlots();
+	renderHints();
+	renderCommandMoves();
+	renderSummons();
+	const autoCount = Object.values(assignments).filter((a) => a.auto).length;
+	statusEl.textContent = realMovesetLoaded
+		? `${displayName} loaded - ${Object.keys(actions).length} actions found, real moveset.json imported (${Object.keys(assignments).length} moves, ${commandMoves.length} command moves${summons ? ", summons" : ""})`
+		: `${displayName} loaded - ${Object.keys(actions).length} actions found, ${autoCount} slots auto-filled`;
+}
+
+function renderActionList() {
+	actionListInner.innerHTML = "";
+	if (!actions) return;
+	const filterText = filterInput.value.trim().toLowerCase();
+	const nums = Object.keys(actions)
+		.map(Number)
+		.filter((n) => n < 30000) // hide the huge shared-effects/helper range, keep this character's own actions
+		.sort((a, b) => a - b);
+
+	const assignedActions = new Set(Object.values(assignments).map((a) => a.action));
+
+	for (const num of nums) {
+		const action = actions[num];
+		const hasHit = actionHasHit(action);
+		if (onlyHits.checked && !hasHit) continue;
+		if (filterText && !String(num).includes(filterText)) continue;
+
+		const row = document.createElement("div");
+		row.className = "action-row" + (hasHit ? " hasHit" : "") + (num === selectedAction ? " selected" : "") + (assignedActions.has(num) ? " assigned" : "");
+		row.innerHTML = `<span>#${num}</span><span class="frames">${action.frames.length}f</span>`;
+		row.onclick = () => selectAction(num);
+		actionListInner.appendChild(row);
+	}
+}
+
+function selectAction(num) {
+	selectedAction = num;
+	previewFrameIndex = 0;
+	previewTimer = 0;
+	renderActionList();
+	updatePreviewInfo();
+}
+
+function updatePreviewInfo() {
+	if (selectedAction === null || !actions[selectedAction]) {
+		previewInfo.textContent = "No action selected";
+		return;
+	}
+	const action = actions[selectedAction];
+	const frame = action.frames[previewFrameIndex];
+	const hit = frame && frame.clsn1 && frame.clsn1.length > 0;
+	let statusSuffix = "";
+	if (hit) {
+		statusSuffix = " - HITBOX ACTIVE";
+	} else if (frame && atlas && getSpriteAlphaSpans(atlas, frame.group, frame.image)) {
+		statusSuffix = " - no authored hitbox, showing AUTO pixel-perfect outline";
+	}
+	previewInfo.textContent = `Action #${selectedAction} - frame ${previewFrameIndex + 1}/${action.frames.length}${statusSuffix}`;
+}
+
+function drawPreview() {
+	pctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+	pctx.fillStyle = "#0b0c10";
+	pctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+	// Ground line for spatial reference - matches the game's own default ground position
+	// (STAGE.groundYFrac ?? 0.7 in lite-fighter.html's draw loop), so a character previewed
+	// here is standing exactly where it'll actually stand in a match, not at an arbitrary
+	// unrelated height. If a stage overrides groundYFrac, this preview won't reflect that
+	// (this tool has no stage context), but it'll match every stage that uses the default.
+	const PREVIEW_GROUND_FRAC = 0.7;
+	pctx.strokeStyle = "#33384a";
+	pctx.beginPath();
+	pctx.moveTo(0, previewCanvas.height * PREVIEW_GROUND_FRAC);
+	pctx.lineTo(previewCanvas.width, previewCanvas.height * PREVIEW_GROUND_FRAC);
+	pctx.stroke();
+
+	if (selectedAction === null || !actions[selectedAction] || !atlas) return;
+	const action = actions[selectedAction];
+	const frame = action.frames[previewFrameIndex];
+	if (!frame) return;
+
+	const SCALE = 3;
+	pctx.save();
+	pctx.translate(previewCanvas.width / 2, previewCanvas.height * PREVIEW_GROUND_FRAC);
+	atlas.draw(pctx, frame.group, frame.image, 0, 0, false, false, SCALE);
+
+	if (showBoxes) {
+		drawBoxesLocal(frame.clsn2, "#3399ff", SCALE);
+		if (frame.clsn1 && frame.clsn1.length > 0) {
+			drawBoxesLocal(frame.clsn1, "#ff3333", SCALE);
+		} else {
+			const spans = getSpriteAlphaSpans(atlas, frame.group, frame.image);
+			if (spans) drawAlphaSpansLocal(spans, "#ff9d33", SCALE);
+		}
+	}
+	pctx.restore();
+}
+
+/** Draws a per-row auto hitbox as a real silhouette outline (one 1px-tall rect per row span), not a bounding box - this is what makes it "pixel-perfect" rather than just another rectangle. */
+function drawAlphaSpansLocal(spans, color, scale) {
+	pctx.fillStyle = color;
+	pctx.globalAlpha = 0.45;
+	for (const { y, x1, x2 } of spans) {
+		pctx.fillRect(x1 * scale, y * scale, (x2 - x1 + 1) * scale, scale);
+	}
+	pctx.globalAlpha = 1;
+}
+
+function drawBoxesLocal(list, color, scale) {
+	pctx.fillStyle = color;
+	pctx.globalAlpha = 0.5;
+	for (const [x1, y1, x2, y2] of list) {
+		pctx.fillRect(Math.min(x1, x2) * scale, y1 * scale, Math.abs(x2 - x1) * scale, (y2 - y1) * scale);
+	}
+	pctx.globalAlpha = 1;
+}
+
+function tickPreview(dt) {
+	if (selectedAction === null || !actions[selectedAction] || !playing) return;
+	const action = actions[selectedAction];
+	const frame = action.frames[previewFrameIndex];
+	if (!frame) return;
+	const dur = frame.time / 60;
+	if (frame.time < 0) return; // holds forever
+	previewTimer += dt;
+	while (previewTimer >= dur && dur > 0) {
+		previewTimer -= dur;
+		previewFrameIndex += 1;
+		if (previewFrameIndex >= action.frames.length) {
+			if (holdLastFrame) {
+				previewFrameIndex = action.frames.length - 1; // settle here instead of restarting the loop
+				updatePreviewInfo();
+				return;
+			}
+			previewFrameIndex = action.loopstart - 1 || 0;
+		}
+		updatePreviewInfo();
+	}
+}
+
+// ===== Client-side CNS/CMD scan (uploaded characters only) =====
+// A JS port of the same targeted regex heuristics as the offline `cns_scanner.py` (not a
+// general MUGEN state-machine interpreter - same limitation noted in the project handoff:
+// .cns is only pattern-matched here, never fully executed). Produces the same shape of report
+// object as tools/cns_scan_report.json so it can feed the exact same hints panel / auto-taunt
+// logic the built-in roster already uses.
+function scanCnsText(cnsText, cmdText) {
+	const report = {
+		doubleJump: { candidateStates: [], distinctAnims: [], likelyDoubleJumpWithOwnAnim: false },
+		taunts: [],
+		movingStates: [],
+		cancelableStates: [],
+	};
+	if (!cnsText) return report;
+
+	// 1. Command names bound to a bare Start-button press ("s", no direction) - same signal
+	// the python scanner uses to find the taunt command, since every character in this roster
+	// binds taunt to Start and nothing else does.
+	const tauntCommandNames = new Set();
+	if (cmdText) {
+		const commandRegex = /\[Command\]([\s\S]*?)(?=\[Command\]|\[State|\z)/gi;
+		let cm;
+		while ((cm = commandRegex.exec(cmdText))) {
+			const block = cm[1];
+			const nameMatch = block.match(/^\s*name\s*=\s*"([^"]+)"/im);
+			const cmdMatch = block.match(/^\s*command\s*=\s*([^\r\n]+)/im);
+			if (nameMatch && cmdMatch && /^s$/i.test(cmdMatch[1].trim())) {
+				tauntCommandNames.add(nameMatch[1]);
+			}
+		}
+	}
+
+	// 2. Locate every [Statedef N] block's span so State controllers can be attributed back to
+	// the Statedef that contains them.
+	const statedefMatches = [...cnsText.matchAll(/\[Statedef\s+(-?\d+)\]/gi)];
+	const statedefs = statedefMatches.map((m, i) => ({
+		stateno: m[1],
+		start: m.index,
+		end: i + 1 < statedefMatches.length ? statedefMatches[i + 1].index : cnsText.length,
+	}));
+	function statedefFor(pos) {
+		return statedefs.find((s) => pos >= s.start && pos < s.end);
+	}
+	function findAnimForState(stateno) {
+		const sd = statedefs.find((s) => s.stateno === stateno);
+		if (!sd) return stateno; // fallback matches the pattern observed across the roster (anim == state number)
+		const body = cnsText.slice(sd.start, sd.end);
+		const animMatch = body.match(/\bAnim\s*=\s*(-?\d+)/i);
+		return animMatch ? animMatch[1] : stateno;
+	}
+
+	// 3. Walk every [State ...] controller block once, classifying each by its own `type =`.
+	const stateBlockRegex = /\[State[^\]\r\n]*\]([\s\S]*?)(?=\[State[^\]\r\n]*\]|\[Statedef|\z)/gi;
+	const movingByState = {};
+	const cancelByState = {};
+	let sb;
+	while ((sb = stateBlockRegex.exec(cnsText))) {
+		const body = sb[1];
+		const sd = statedefFor(sb.index);
+		if (!sd) continue;
+		const typeMatch = body.match(/\btype\s*=\s*(\w+)/i);
+		if (!typeMatch) continue;
+		const type = typeMatch[1];
+
+		if (type === "ChangeState") {
+			const valueMatch = body.match(/\bvalue\s*=\s*(-?\d+)/i);
+			if (!valueMatch) continue;
+			const target = valueMatch[1];
+
+			// Taunt: this ChangeState is triggered by a command bound to Start.
+			const commandTriggers = [...body.matchAll(/command\s*=\s*"([^"]+)"/gi)].map((x) => x[1]);
+			if (commandTriggers.some((c) => tauntCommandNames.has(c))) {
+				report.taunts.push({ targetState: target, commands: ["s"], anim: findAnimForState(target) });
+			}
+
+			// Cancel-on-hit: this ChangeState's trigger references movehit/moveguarded.
+			if (/\b(movehit|moveguarded)\b/i.test(body)) {
+				(cancelByState[sd.stateno] = cancelByState[sd.stateno] || []).push({ target, type: "ChangeState" });
+			}
+		}
+
+		if (type === "VelSet" || type === "VelAdd" || type === "PosAdd") {
+			const xMatch = body.match(/^\s*x\s*=\s*([^\r\n]+)/im);
+			const yMatch = body.match(/^\s*y\s*=\s*([^\r\n]+)/im);
+			if (xMatch || yMatch) {
+				(movingByState[sd.stateno] = movingByState[sd.stateno] || []).push({
+					type,
+					x: xMatch ? xMatch[1].trim() : null,
+					y: yMatch ? yMatch[1].trim() : null,
+				});
+			}
+		}
+	}
+
+	for (const [stateno, movement] of Object.entries(movingByState)) {
+		report.movingStates.push({ stateno: Number(stateno), anim: findAnimForState(stateno), movement });
+	}
+	for (const [stateno, entries] of Object.entries(cancelByState)) {
+		report.cancelableStates.push({ stateno: Number(stateno), anim: findAnimForState(stateno), targets: entries.map((e) => e.target) });
+	}
+	return report;
+}
+
+// ===== Upload handling =====
+// Groups whatever files were selected by their shared "name" (an .air/.cns/.cmd is named
+// exactly `name.ext`; the atlas is `sprite_atlas_name.{csv,png}`), reads them client-side, and
+// registers one entry per complete character in customCharacters. Required: .air + atlas csv/png.
+// Optional: .cns + .cmd (both needed together to get the scan hints - one without the other is
+// treated as missing, same as the offline scanner needs both files for its full analysis).
+function readFileAsText(file) {
+	return new Promise((resolve, reject) => {
+		const r = new FileReader();
+		r.onload = () => resolve(r.result);
+		r.onerror = () => reject(r.error);
+		r.readAsText(file);
+	});
+}
+function readFileAsDataUrl(file) {
+	return new Promise((resolve, reject) => {
+		const r = new FileReader();
+		r.onload = () => resolve(r.result);
+		r.onerror = () => reject(r.error);
+		r.readAsDataURL(file);
+	});
+}
+
+// Persists across upload batches (drag-drop or file-picker, one or many drops) so a character's
+// files can arrive in any order/grouping and the checklist below always reflects the true combined
+// state - e.g. drop the .air now, the atlas png/csv a minute later, still ends up complete.
+const pendingUploadGroups = {}; // name -> { air, csv, png, cns, cmd, __added } (File objects until read; __added once folded into customCharacters)
+let pendingUploadOrder = []; // preserves first-seen order for a stable checklist
+
+const REQUIRED_UPLOAD_KINDS = ["air", "csv", "png"];
+const OPTIONAL_UPLOAD_KINDS = ["cns", "cmd"];
+
+/** Only recognizes the exact supported naming/extension patterns - anything else (wrong extension,
+ * or a name that doesn't match name.EXT / sprite_atlas_name.EXT) is treated as unsupported and
+ * reported, never silently guessed at. */
+function classifyUploadFile(file) {
+	const lower = file.name.toLowerCase();
+	const atlasMatch = lower.match(/^sprite_atlas_(.+)\.(png|csv)$/);
+	if (atlasMatch) return { name: atlasMatch[1], kind: atlasMatch[2] };
+	const extMatch = lower.match(/^(.+)\.(air|cns|cmd)$/);
+	if (extMatch) return { name: extMatch[1], kind: extMatch[2] };
+	return null;
+}
+
+function uploadFileLabel(name, kind) {
+	if (kind === "air" || kind === "cns" || kind === "cmd") return `${name}.${kind}`;
+	return `sprite_atlas_${name}.${kind}`;
+}
+
+async function handleUpload(fileList) {
+	const files = Array.from(fileList);
+	if (files.length === 0) return;
+
+	const touchedNames = new Set();
+	const problems = [];
+	for (const file of files) {
+		const parsed = classifyUploadFile(file);
+		if (!parsed) {
+			problems.push(`Skipped "${file.name}" - unsupported/unrecognized. Expected name.air, sprite_atlas_name.png/csv, or optionally name.cns/name.cmd.`);
+			continue;
+		}
+		const { name, kind } = parsed;
+		pendingUploadGroups[name] = pendingUploadGroups[name] || {};
+		pendingUploadGroups[name][kind] = file;
+		if (!pendingUploadOrder.includes(name)) pendingUploadOrder.push(name);
+		touchedNames.add(name);
+	}
+
+	let addedCount = 0;
+	const addedNames = [];
+	for (const name of touchedNames) {
+		const g = pendingUploadGroups[name];
+		if (g.__added) continue; // already folded in from an earlier batch - don't re-read/re-add
+		const missing = REQUIRED_UPLOAD_KINDS.filter((k) => !g[k]);
+		if (missing.length) continue; // stays visible (incomplete) in the checklist, nothing more to do yet
+
+		const [air, csv, pngDataUrl, cns, cmd] = await Promise.all([
+			readFileAsText(g.air),
+			readFileAsText(g.csv),
+			readFileAsDataUrl(g.png),
+			g.cns ? readFileAsText(g.cns) : Promise.resolve(null),
+			g.cmd ? readFileAsText(g.cmd) : Promise.resolve(null),
+		]);
+		const key = `custom:${name}`;
+		customCharacters[key] = { name, air, csv, pngDataUrl, cns: g.cns && g.cmd ? cns : null, cmd: g.cns && g.cmd ? cmd : null };
+		g.__added = true;
+
+		if (![...charPicker.options].some((o) => o.value === key)) {
+			const opt = document.createElement("option");
+			opt.value = key;
+			opt.textContent = `${name} (uploaded)`;
+			charPicker.appendChild(opt);
+		}
+		addedCount++;
+		addedNames.push(name);
+	}
+
+	renderUploadChecklist();
+
+	if (addedCount > 0) {
+		charPicker.value = `custom:${addedNames[addedNames.length - 1]}`;
+		statusEl.textContent = `Added ${addedCount} uploaded character${addedCount === 1 ? "" : "s"}${problems.length ? " - " + problems.join("; ") : ""}. Click Load.`;
+	} else if (problems.length) {
+		statusEl.textContent = problems.join("; ");
+	} else {
+		statusEl.textContent = "Files received - see the checklist below for what each character still needs.";
+	}
+}
+
+/** Renders the "which files are uploaded / still required" checklist under the dropzone - one card
+ * per character name seen across every upload batch so far, live-updated after every drop/pick. */
+function renderUploadChecklist() {
+	uploadChecklistEl.innerHTML = "";
+	for (const name of pendingUploadOrder) {
+		const g = pendingUploadGroups[name];
+		if (!g) continue;
+		const card = document.createElement("div");
+		card.className = "upload-char-card" + (g.__added ? " complete" : "");
+
+		const head = document.createElement("div");
+		head.className = "uc-name";
+		const nameSpan = document.createElement("span");
+		nameSpan.textContent = name;
+		head.appendChild(nameSpan);
+		const removeSpan = document.createElement("span");
+		removeSpan.className = "uc-remove";
+		removeSpan.textContent = "✕";
+		removeSpan.title = "Forget this pending upload (an already-added character stays in the roster - use the roster itself to manage that)";
+		removeSpan.onclick = () => {
+			delete pendingUploadGroups[name];
+			pendingUploadOrder = pendingUploadOrder.filter((n) => n !== name);
+			renderUploadChecklist();
+		};
+		head.appendChild(removeSpan);
+		card.appendChild(head);
+
+		const list = document.createElement("ul");
+		for (const kind of REQUIRED_UPLOAD_KINDS) {
+			const li = document.createElement("li");
+			li.className = g[kind] ? "have" : "missing";
+			li.textContent = `${g[kind] ? "✓" : "✗ needed —"} ${uploadFileLabel(name, kind)}`;
+			list.appendChild(li);
+		}
+		for (const kind of OPTIONAL_UPLOAD_KINDS) {
+			const li = document.createElement("li");
+			li.className = g[kind] ? "have" : "optional-missing";
+			li.textContent = `${g[kind] ? "✓" : "○ optional —"} ${uploadFileLabel(name, kind)}`;
+			list.appendChild(li);
+		}
+		card.appendChild(list);
+
+		const status = document.createElement("div");
+		status.className = "uc-status";
+		status.textContent = g.__added ? "✅ Added to roster - select & Load" : "Waiting on the required files above";
+		card.appendChild(status);
+
+		uploadChecklistEl.appendChild(card);
+	}
+}
+
+function prefillFromExisting(key) {
+	// Basic poses: universal template action numbers. Each slot may list several candidates in
+	// priority order (see UNIVERSAL_ACTIONS comment) - take the first one this character's own
+	// .air actually defines, skip the slot entirely if none of them exist for this character.
+	const defaultHoldSlots = new Set(["crouch", "jumpSquat", "guard"]);
+	for (const [slotKey, candidates] of Object.entries(UNIVERSAL_ACTIONS)) {
+		const list = Array.isArray(candidates) ? candidates : [candidates];
+		const found = list.find((num) => actions[num]);
+		if (found !== undefined) {
+			assignments[slotKey] = { action: found, pose: true, holdLastFrame: defaultHoldSlots.has(slotKey), auto: true };
+		}
+	}
+
+	// Attacks already verified and tuned in moves.js for the original 12-character roster.
+	const legacy = MOVESETS[key];
+	if (legacy) {
+		for (const [oldSlot, newSlot] of Object.entries(LEGACY_SLOT_MAP)) {
+			const move = legacy[oldSlot];
+			if (move) {
+				assignments[newSlot] = {
+					action: move.action,
+					type: "melee",
+					attackType: DEFAULT_ATTACK_TYPE_BY_SLOT[newSlot] || "Jab",
+					damage: move.damage,
+					kbBase: move.kbBase,
+					kbGrowth: move.kbGrowth,
+					angle: move.angle,
+					auto: true,
+				};
+			}
+		}
+	}
+
+	// Taunt: prefer whatever the CNS scan actually found for this character (real trigger
+	// analysis, not a guess); fall back to the two template numbers seen across the standard
+	// Elecbyte/KFM-derived template (195, or 199 on a character authored slightly differently)
+	// only if the scan has nothing AND this character's .air happens to define one of those numbers.
+	const report = scanReport && scanReport[key];
+	const scannedTaunt = report && report.taunts && report.taunts[0] && report.taunts[0].anim ? Number(report.taunts[0].anim) : null;
+	const tauntCandidates = [scannedTaunt, 195, 199].filter((n) => n !== null);
+	const tauntAnim = tauntCandidates.find((num) => actions[num]);
+	if (tauntAnim !== undefined) {
+		assignments.taunt = { action: tauntAnim, pose: true, holdLastFrame: false, auto: true };
+	}
+}
+
+function renderHints() {
+	let panel = document.getElementById("hintsPanel");
+	if (!panel) {
+		panel = document.createElement("div");
+		panel.id = "hintsPanel";
+		panel.style.cssText = "background:#1a1d28; border:1px solid #33384a; border-radius:4px; padding:8px; margin-bottom:10px; font-size:10px; color:#aaa; line-height:1.5;";
+		slotsEl.parentElement.insertBefore(panel, slotsEl);
+	}
+	const report = scanReport && currentCharKey && scanReport[currentCharKey];
+	const dj = report && report.doubleJump;
+	const moving = (report && report.movingStates) || [];
+	const cancel = (report && report.cancelableStates) || [];
+	const movingAnims = new Set(moving.map((m) => Number(m.anim)));
+	const cancelAnims = new Set(cancel.map((c) => Number(c.anim)));
+
+	// Leftover attacks: anything with a real Clsn1 hitbox that isn't already sitting in a slot,
+	// so the "I'll select the rest" part of assigning a character is a short list to skim
+	// instead of hunting through the full action list. Tagged with scan signals where they
+	// overlap - [moves] often means an aerial/dash attack, [cancel] often means a special that
+	// chains into a follow-up - but these are hints to check visually, not identifications.
+	// Shown even when there's no CNS scan at all (e.g. a freshly uploaded character with no
+	// .cns/.cmd) - it's derived purely from the .air's own Clsn1 data.
+	const assignedActions = new Set(Object.values(assignments).map((a) => a.action));
+	const leftover = Object.keys(actions)
+		.map(Number)
+		.filter((n) => n < 30000 && !assignedActions.has(n) && actionHasHit(actions[n]))
+		.sort((a, b) => a - b);
+	const leftoverHtml = `<b>Unassigned attacks (has a hitbox):</b> ${leftover.length} left to place${
+		leftover.length
+			? "<br>" +
+			  leftover
+					.slice(0, 40)
+					.map((n) => `#${n}${movingAnims.has(n) ? " [moves]" : ""}${cancelAnims.has(n) ? " [cancel]" : ""}`)
+					.join(", ") +
+			  (leftover.length > 40 ? ", ..." : "")
+			: ""
+	}`;
+
+	if (!report) {
+		panel.innerHTML = `<b style="color:#5dd0ff;">CNS scan</b><br>No .cns/.cmd scan data for this character (upload both files to get taunt/movement/cancel hints).<br>${leftoverHtml}`;
+		return;
+	}
+	panel.innerHTML = `
+		<b style="color:#5dd0ff;">CNS scan hints</b> <span style="color:#666;">(heuristic - verify visually before trusting)</span><br>
+		<b>Double jump:</b> ${dj.likelyDoubleJumpWithOwnAnim ? `possible, candidate anims: ${dj.distinctAnims.join(", ")}` : "no distinct second-jump animation detected"}<br>
+		<b>Taunt:</b> ${report.taunts[0] ? `action #${report.taunts[0].anim} (auto-assigned above)` : "not detected"}<br>
+		<b>States with movement (VelSet/PosAdd):</b> ${moving.length} found${moving.length ? " - e.g. #" + moving.slice(0, 5).map((m) => m.anim).join(", #") : ""}<br>
+		<b>States with a cancel-on-hit pattern:</b> ${cancel.length} found${cancel.length ? " - e.g. #" + cancel.slice(0, 5).map((c) => c.anim).join(", #") : ""}<br>
+		${leftoverHtml}
+	`;
+}
+
+function renderSlots() {
+	slotsEl.innerHTML = "";
+	let lastGroup = null;
+	for (const slot of SLOT_DEFS) {
+		if (slot.group !== lastGroup) {
+			const h = document.createElement("div");
+			h.className = "slot-category";
+			h.textContent = slot.group;
+			slotsEl.appendChild(h);
+			lastGroup = slot.group;
+		}
+
+		const assigned = assignments[slot.key];
+		const row = document.createElement("div");
+		row.className = "slot-row" + (assigned ? " filled" : "");
+
+		const header = document.createElement("div");
+		header.className = "slot-header";
+		const autoBadge = assigned && assigned.auto ? ` <span style="color:#e0b84a; font-size:9px;">AUTO</span>` : "";
+		header.innerHTML = `<span class="label">${slot.label}</span><span class="action-tag ${assigned ? "" : "empty"}">${assigned ? "#" + assigned.action : "unassigned"}${autoBadge}</span>`;
+		row.appendChild(header);
+
+		const btnRow = document.createElement("div");
+		btnRow.className = "slot-buttons";
+		const assignBtn = document.createElement("button");
+		assignBtn.className = "assign";
+		assignBtn.textContent = "Assign selected action";
+		assignBtn.onclick = () => {
+			if (selectedAction === null) {
+				statusEl.textContent = "Select an action from the list first";
+				return;
+			}
+			if (slot.pose) {
+				const defaultHold = slot.key === "crouch" || slot.key === "guard";
+				assignments[slot.key] = { action: selectedAction, pose: true, holdLastFrame: defaultHold };
+			} else {
+				const defaults = CATEGORY_DEFAULTS[slot.category];
+				assignments[slot.key] = {
+					action: selectedAction,
+					type: "melee",
+					attackType: DEFAULT_ATTACK_TYPE_BY_SLOT[slot.key] || "Jab",
+					...defaults,
+				};
+			}
+			renderSlots();
+			renderActionList();
+		};
+		btnRow.appendChild(assignBtn);
+		if (assigned) {
+			const clearBtn = document.createElement("button");
+			clearBtn.textContent = "Clear";
+			clearBtn.onclick = () => {
+				delete assignments[slot.key];
+				renderSlots();
+				renderActionList();
+			};
+			btnRow.appendChild(clearBtn);
+			const previewBtn = document.createElement("button");
+			previewBtn.textContent = "Preview";
+			previewBtn.onclick = () => {
+				if (slot.pose) {
+					holdLastFrame = Boolean(assigned.holdLastFrame);
+					document.getElementById("holdLastFrameToggle").checked = holdLastFrame;
+				}
+				selectAction(assigned.action);
+			};
+			btnRow.appendChild(previewBtn);
+		}
+		row.appendChild(btnRow);
+
+		if (assigned && slot.pose) {
+			const holdRow = document.createElement("label");
+			holdRow.style.cssText = "margin-top:4px; font-size:10px; display:flex; align-items:center; gap:6px; color:#888;";
+			const cb = document.createElement("input");
+			cb.type = "checkbox";
+			cb.style.width = "auto";
+			cb.checked = Boolean(assigned.holdLastFrame);
+			cb.onchange = () => {
+				assigned.holdLastFrame = cb.checked;
+			};
+			holdRow.appendChild(cb);
+			holdRow.appendChild(document.createTextNode("Hold on last frame instead of looping"));
+			row.appendChild(holdRow);
+		}
+
+		// Pose slots (idle, taunt, crouch, etc.) are just an animation reference - no combat
+		// tuning, no melee/projectile distinction. Only real attacks get that below.
+		if (assigned && !slot.pose) {
+			const typeRow = document.createElement("div");
+			typeRow.style.cssText = "margin-top:4px; font-size:10px; display:flex; align-items:center; gap:6px;";
+			const typeLabel = document.createElement("span");
+			typeLabel.textContent = "Type:";
+			typeLabel.style.color = "#888";
+			const typeSelect = document.createElement("select");
+			typeSelect.style.cssText = "background:#14151c; color:#e6e6e6; border:1px solid #33384a; font-family:'All Around The World', monospace; font-size:10px; padding:2px;";
+			for (const opt of ["melee", "projectile", "sweep"]) {
+				const o = document.createElement("option");
+				o.value = opt;
+				o.textContent = opt;
+				if (assigned.type === opt) o.selected = true;
+				typeSelect.appendChild(o);
+			}
+			typeSelect.onchange = () => {
+				assigned.type = typeSelect.value;
+				if (assigned.type === "projectile" && !assigned.projectile) {
+					assigned.projectile = { ...PROJECTILE_DEFAULTS };
+				}
+				if (assigned.type === "sweep" && !assigned.sweep) {
+					assigned.sweep = { ...SWEEP_DEFAULTS };
+				}
+				renderSlots();
+			};
+			typeRow.appendChild(typeLabel);
+			typeRow.appendChild(typeSelect);
+			row.appendChild(typeRow);
+
+			// Standardized attack archetype (Jab/Tilt/Smash/Projectile/Counter/etc, see ATTACK_TYPES) -
+			// separate from the melee/projectile "how is the hitbox delivered" toggle above; this is
+			// "which universal attack-behavior function should run this move" once that engine work
+			// happens. Defaults to a sensible guess per slot (DEFAULT_ATTACK_TYPE_BY_SLOT), always
+			// overridable - e.g. a "special" slot might really be a Counter, Reflector, or Summon.
+			if (!assigned.attackType) assigned.attackType = DEFAULT_ATTACK_TYPE_BY_SLOT[slot.key] || "Jab";
+			const archRow = document.createElement("div");
+			archRow.style.cssText = "margin-top:4px; font-size:10px; display:flex; align-items:center; gap:6px;";
+			const archLabel = document.createElement("span");
+			archLabel.textContent = "Attack category:";
+			archLabel.style.color = "#888";
+			const archSelect = document.createElement("select");
+			archSelect.style.cssText = "background:#14151c; color:#e6e6e6; border:1px solid #33384a; font-family:'All Around The World', monospace; font-size:10px; padding:2px; max-width:160px;";
+			for (const opt of ATTACK_TYPES) {
+				const o = document.createElement("option");
+				o.value = opt;
+				o.textContent = opt;
+				if (assigned.attackType === opt) o.selected = true;
+				archSelect.appendChild(o);
+			}
+			archSelect.onchange = () => {
+				assigned.attackType = archSelect.value;
+			};
+			archRow.appendChild(archLabel);
+			archRow.appendChild(archSelect);
+			row.appendChild(archRow);
+
+			const tuning = document.createElement("div");
+			tuning.className = "tuning";
+			tuning.style.display = "grid";
+			for (const field of ["damage", "kbBase", "kbGrowth", "angle", "priority"]) {
+				const wrap = document.createElement("label");
+				wrap.textContent = field;
+				const input = document.createElement("input");
+				input.type = "number";
+				input.value = assigned[field] ?? "";
+				input.oninput = () => {
+					assigned[field] = Number(input.value);
+				};
+				wrap.appendChild(input);
+				tuning.appendChild(wrap);
+			}
+			row.appendChild(tuning);
+
+			// ---- Display label (movelist/HUD name - only meaningful for specials/command moves,
+			// harmless to set anywhere) ----
+			const labelRow = document.createElement("div");
+			labelRow.style.cssText = "margin-top:4px; display:flex; align-items:center; gap:6px; font-size:10px;";
+			const labelLabel = document.createElement("span");
+			labelLabel.textContent = "Label:";
+			labelLabel.style.color = "#888";
+			const labelInput = document.createElement("input");
+			labelInput.type = "text";
+			labelInput.placeholder = "(shown in pause movelist, optional)";
+			labelInput.style.cssText = "flex:1; background:#14151c; border:1px solid #33384a; color:#e6e6e6; font-family:'All Around The World', monospace; font-size:10px; padding:3px 4px; border-radius:2px;";
+			labelInput.value = assigned.label || "";
+			labelInput.oninput = () => {
+				if (labelInput.value.trim()) assigned.label = labelInput.value;
+				else delete assigned.label;
+			};
+			labelRow.appendChild(labelLabel);
+			labelRow.appendChild(labelInput);
+			row.appendChild(labelRow);
+
+			// ---- Hit/guard spark action numbers (real .air actions on THIS character - the visual
+			// flash/impact-fx played where the hit lands, distinct from the swing/hit/guard sounds
+			// below) - optional, blank = engine falls back to its own generic spark. ----
+			const sparkTuning = document.createElement("div");
+			sparkTuning.className = "tuning";
+			sparkTuning.style.display = "grid";
+			sparkTuning.style.marginTop = "2px";
+			for (const field of ["hitSpark", "guardSpark"]) {
+				const wrap = document.createElement("label");
+				wrap.textContent = field;
+				const input = document.createElement("input");
+				input.type = "number";
+				input.placeholder = "(auto)";
+				input.value = assigned[field] ?? "";
+				input.oninput = () => {
+					if (input.value === "") delete assigned[field];
+					else assigned[field] = Number(input.value);
+				};
+				wrap.appendChild(input);
+				sparkTuning.appendChild(wrap);
+			}
+			row.appendChild(sparkTuning);
+
+			// ---- Non-damaging stun/dizzy on hit (SpongeBob's Up-B "Bubble" convention - see
+			// Character.applyStun() in lite-fighter.html) - a real, if uncommon, MUGEN pattern where
+			// a HitDef does 0 damage/knockback and instead locks the opponent in a dizzy pose for a
+			// fixed duration. Independent of type (melee/projectile/sweep can all carry it). ----
+			const stunRow = document.createElement("label");
+			stunRow.className = "field-row-inline";
+			const stunCb = document.createElement("input");
+			stunCb.type = "checkbox";
+			stunCb.style.width = "auto";
+			stunCb.checked = Boolean(assigned.stun);
+			const stunDurInput = document.createElement("input");
+			stunDurInput.type = "number";
+			stunDurInput.step = "0.1";
+			stunDurInput.style.cssText = "width:60px; background:#14151c; border:1px solid #33384a; color:#e6e6e6; font-family:'All Around The World', monospace; font-size:10px; padding:2px 3px; border-radius:2px;";
+			stunDurInput.value = assigned.stunDuration ?? 1.5;
+			stunDurInput.disabled = !stunCb.checked;
+			stunCb.onchange = () => {
+				assigned.stun = stunCb.checked;
+				if (stunCb.checked) {
+					assigned.stunDuration = Number(stunDurInput.value) || 1.5;
+					stunDurInput.disabled = false;
+				} else {
+					delete assigned.stun;
+					delete assigned.stunDuration;
+					stunDurInput.disabled = true;
+				}
+			};
+			stunDurInput.oninput = () => {
+				assigned.stunDuration = Number(stunDurInput.value) || 1.5;
+			};
+			stunRow.appendChild(stunCb);
+			stunRow.appendChild(document.createTextNode("Non-damaging stun on hit, duration:"));
+			stunRow.appendChild(stunDurInput);
+			stunRow.appendChild(document.createTextNode("s"));
+			row.appendChild(stunRow);
+
+			// ---- Sounds (swing/hit/guard, each a real [group,index] pair into this character's own
+			// sound_bank.json) - optional per move; omitted fields fall back to the engine's default
+			// generic sounds. ----
+			const soundsWrap = document.createElement("div");
+			soundsWrap.style.cssText = "margin-top:6px;";
+			const soundsToggleRow = document.createElement("div");
+			soundsToggleRow.style.cssText = "display:flex; align-items:center; gap:6px; font-size:10px; color:#888;";
+			const soundsToggleBtn = document.createElement("button");
+			soundsToggleBtn.textContent = assigned.sounds ? "Remove sounds" : "+ Add sounds (swing/hit/guard)";
+			soundsToggleBtn.onclick = () => {
+				if (assigned.sounds) delete assigned.sounds;
+				else assigned.sounds = { swing: [0, 0], hit: [0, 0], guard: [0, 0] };
+				renderSlots();
+			};
+			soundsToggleRow.appendChild(soundsToggleBtn);
+			soundsWrap.appendChild(soundsToggleRow);
+			if (assigned.sounds) {
+				const soundsGrid = document.createElement("div");
+				soundsGrid.className = "field-grid";
+				for (const cue of ["swing", "hit", "guard"]) {
+					if (!Array.isArray(assigned.sounds[cue])) assigned.sounds[cue] = [0, 0];
+					for (let i = 0; i < 2; i++) {
+						const wrap = document.createElement("label");
+						wrap.textContent = `${cue} [${i === 0 ? "group" : "index"}]`;
+						const input = document.createElement("input");
+						input.type = "number";
+						input.value = assigned.sounds[cue][i];
+						input.oninput = () => {
+							assigned.sounds[cue][i] = Number(input.value);
+						};
+						wrap.appendChild(input);
+						soundsGrid.appendChild(wrap);
+					}
+				}
+				soundsWrap.appendChild(soundsGrid);
+			}
+			row.appendChild(soundsWrap);
+
+			if (assigned.type === "projectile") {
+				if (!assigned.projectile) assigned.projectile = { ...PROJECTILE_DEFAULTS };
+				const proj = assigned.projectile;
+				const projTuning = document.createElement("div");
+				projTuning.className = "tuning";
+				projTuning.style.display = "grid";
+				projTuning.style.marginTop = "2px";
+				for (const field of ["speed", "offsetX", "offsetY", "life"]) {
+					const wrap = document.createElement("label");
+					wrap.textContent = field;
+					const input = document.createElement("input");
+					input.type = "number";
+					input.value = proj[field];
+					input.oninput = () => {
+						proj[field] = Number(input.value);
+					};
+					wrap.appendChild(input);
+					projTuning.appendChild(wrap);
+				}
+				row.appendChild(projTuning);
+				const hint = document.createElement("div");
+				hint.style.cssText = "font-size:9px; color:#666; margin-top:3px;";
+				hint.textContent = "Character stays planted and plays this animation once; a separate hitbox travels forward at 'speed' px/s from ('offsetX','offsetY') for 'life' seconds.";
+				row.appendChild(hint);
+
+				// ---- Real in-.air action numbers for the traveling projectile's own body/impact
+				// frames (e.g. a Helper's real flying-object anim, and its real hit/miss spark anims) -
+				// preferred over the uploaded-image workflow below whenever bodyAction is set (see
+				// lite-fighter.html's Projectile constructor: bodyAction wins if present). Blank =
+				// unset/null - falls through to the uploaded image, then to a plain drawn effect. ----
+				const actionFieldsHint = document.createElement("div");
+				actionFieldsHint.style.cssText = "font-size:9px; color:#666; margin-top:6px;";
+				actionFieldsHint.textContent = "Real .air action numbers on THIS character (preferred over the uploaded image below, if set):";
+				row.appendChild(actionFieldsHint);
+				const projActionTuning = document.createElement("div");
+				projActionTuning.className = "tuning";
+				projActionTuning.style.display = "grid";
+				projActionTuning.style.marginTop = "2px";
+				for (const field of ["bodyAction", "hitSparkAction", "missSparkAction"]) {
+					const wrap = document.createElement("label");
+					wrap.textContent = field;
+					const input = document.createElement("input");
+					input.type = "number";
+					input.placeholder = "(none)";
+					input.value = proj[field] ?? "";
+					input.oninput = () => {
+						proj[field] = input.value === "" ? null : Number(input.value);
+					};
+					wrap.appendChild(input);
+					projActionTuning.appendChild(wrap);
+				}
+				row.appendChild(projActionTuning);
+
+				// ---- Projectile image / animation frame sheet ----
+				const imgRow = document.createElement("div");
+				imgRow.style.cssText = "margin-top:6px; display:flex; align-items:center; gap:8px;";
+				const thumb = document.createElement("canvas");
+				thumb.width = 32; thumb.height = 32;
+				thumb.style.cssText = "background:#0b0c10; border:1px solid #33384a; border-radius:3px; image-rendering:pixelated;";
+				const drawThumb = () => {
+					const tctx = thumb.getContext("2d");
+					tctx.clearRect(0, 0, 32, 32);
+					if (proj.image) {
+						const im = new Image();
+						im.onload = () => {
+							tctx.imageSmoothingEnabled = false;
+							tctx.drawImage(im, 0, 0, Math.min(proj.frameW || im.width, im.width), Math.min(proj.frameH || im.height, im.height), 0, 0, 32, 32);
+						};
+						im.src = proj.image;
+					}
+				};
+				drawThumb();
+				const projImgBtn = document.createElement("button");
+				projImgBtn.textContent = proj.image ? "Change projectile image/sheet" : "Set projectile image/sheet";
+				const projImgInput = document.createElement("input");
+				projImgInput.type = "file";
+				projImgInput.accept = "image/png,image/gif,image/webp,image/jpeg,.png,.gif,.webp,.jpg,.jpeg";
+				projImgInput.style.display = "none";
+				projImgBtn.onclick = () => projImgInput.click();
+				projImgInput.onchange = () => {
+					const file = projImgInput.files[0];
+					if (!file) return;
+					if (!/^image\//.test(file.type) && !/\.(png|gif|webp|jpe?g)$/i.test(file.name)) {
+						statusEl.textContent = `"${file.name}" isn't a supported image type for a projectile sprite.`;
+						return;
+					}
+					const reader = new FileReader();
+					reader.onload = () => {
+						proj.image = reader.result;
+						const probe = new Image();
+						probe.onload = () => {
+							// First upload: default the frame cell to the whole image (a single-frame
+							// sprite) rather than leaving stale numbers from a previous, differently-sized
+							// pick - still fully editable below for a real multi-frame sheet.
+							if (proj.frameCount <= 1) {
+								proj.frameW = probe.naturalWidth;
+								proj.frameH = probe.naturalHeight;
+							}
+							renderSlots();
+						};
+						probe.src = reader.result;
+					};
+					reader.readAsDataURL(file);
+				};
+				const clearImgBtn = document.createElement("button");
+				clearImgBtn.textContent = "✕";
+				clearImgBtn.title = "Remove projectile image (falls back to a simple drawn effect in-game)";
+				clearImgBtn.onclick = () => {
+					proj.image = null;
+					renderSlots();
+				};
+				imgRow.appendChild(thumb);
+				imgRow.appendChild(projImgBtn);
+				imgRow.appendChild(projImgInput);
+				if (proj.image) imgRow.appendChild(clearImgBtn);
+				row.appendChild(imgRow);
+
+				if (proj.image) {
+					const sheetTuning = document.createElement("div");
+					sheetTuning.className = "tuning";
+					sheetTuning.style.display = "grid";
+					sheetTuning.style.marginTop = "4px";
+					for (const field of ["frameW", "frameH", "frameCount", "fps"]) {
+						const wrap = document.createElement("label");
+						wrap.textContent = field;
+						const input = document.createElement("input");
+						input.type = "number";
+						input.min = "1";
+						input.value = proj[field];
+						input.oninput = () => {
+							proj[field] = Math.max(1, Number(input.value) || 1);
+							drawThumb();
+						};
+						wrap.appendChild(input);
+						sheetTuning.appendChild(wrap);
+					}
+					row.appendChild(sheetTuning);
+					const sheetHint = document.createElement("div");
+					sheetHint.style.cssText = "font-size:9px; color:#666; margin-top:2px;";
+					sheetHint.textContent = "Every frame on the sheet shares frameW x frameH - a plain left-to-right grid strip. frameCount=1 treats the whole image as one static sprite.";
+					row.appendChild(sheetHint);
+				}
+			}
+
+			if (assigned.type === "sweep") {
+				if (!assigned.sweep) assigned.sweep = { ...SWEEP_DEFAULTS };
+				const sweep = assigned.sweep;
+
+				const dirRow = document.createElement("div");
+				dirRow.style.cssText = "margin-top:4px; font-size:10px; display:flex; align-items:center; gap:6px;";
+				const dirLabel = document.createElement("span");
+				dirLabel.textContent = "Sweep direction:";
+				dirLabel.style.color = "#888";
+				const dirSelect = document.createElement("select");
+				dirSelect.style.cssText = "background:#14151c; color:#e6e6e6; border:1px solid #33384a; font-family:'All Around The World', monospace; font-size:10px; padding:2px;";
+				for (const opt of [["side", "Side (dash fwd/back)"], ["up", "Up (rising sweep)"], ["down", "Down (crashing sweep)"]]) {
+					const o = document.createElement("option");
+					o.value = opt[0];
+					o.textContent = opt[1];
+					if (sweep.direction === opt[0]) o.selected = true;
+					dirSelect.appendChild(o);
+				}
+				dirSelect.onchange = () => {
+					sweep.direction = dirSelect.value;
+					renderSlots();
+				};
+				dirRow.appendChild(dirLabel);
+				dirRow.appendChild(dirSelect);
+				row.appendChild(dirRow);
+
+				const sweepTuning = document.createElement("div");
+				sweepTuning.className = "tuning";
+				sweepTuning.style.display = "grid";
+				sweepTuning.style.marginTop = "2px";
+				for (const field of ["distance", "speed"]) {
+					const wrap = document.createElement("label");
+					wrap.textContent = field;
+					const input = document.createElement("input");
+					input.type = "number";
+					input.value = sweep[field];
+					input.oninput = () => {
+						sweep[field] = Number(input.value);
+					};
+					wrap.appendChild(input);
+					sweepTuning.appendChild(wrap);
+				}
+				row.appendChild(sweepTuning);
+
+				const flagsRow = document.createElement("div");
+				flagsRow.style.cssText = "margin-top:4px; display:flex; flex-direction:column; gap:3px; font-size:10px; color:#aaa;";
+				const addFlag = (key, label, visibleWhen) => {
+					if (!visibleWhen) return;
+					const lbl = document.createElement("label");
+					lbl.style.cssText = "display:flex; align-items:center; gap:6px;";
+					const cb = document.createElement("input");
+					cb.type = "checkbox";
+					cb.style.width = "auto";
+					cb.checked = Boolean(sweep[key]);
+					cb.onchange = () => {
+						sweep[key] = cb.checked;
+					};
+					lbl.appendChild(cb);
+					lbl.appendChild(document.createTextNode(label));
+					flagsRow.appendChild(lbl);
+				};
+				addFlag("reverse", "Reverse (dash backward, away from facing)", sweep.direction === "side");
+				addFlag("crashDown", "Crash down (fast-fall then hit on impact - for slamming onto a grounded opponent)", sweep.direction === "down");
+				addFlag("reachPlatform", "Can reach a higher platform (overrides the normal jump-height limit while sweeping up)", sweep.direction === "up");
+				row.appendChild(flagsRow);
+
+				const hint = document.createElement("div");
+				hint.style.cssText = "font-size:9px; color:#666; margin-top:3px;";
+				hint.textContent = sweep.direction === "side"
+					? "Character dashes " + (sweep.reverse ? "backward" : "forward") + " up to 'distance' world units at 'speed' px/s; the attack's own hitbox rides along for the whole dash."
+					: sweep.direction === "up"
+					? "Character launches upward up to 'distance' world units at 'speed' px/s, hitbox active the whole rise" + (sweep.reachPlatform ? " - allowed to carry it onto a platform above a normal jump's reach." : ".")
+					: "Character drops/sweeps downward up to 'distance' world units at 'speed' px/s" + (sweep.crashDown ? " - fast-falls and the hitbox is concentrated around the impact, for slamming an opponent into the ground." : ", hitbox active the whole descent.");
+				row.appendChild(hint);
+			}
+		}
+
+		slotsEl.appendChild(row);
+	}
+}
+
+// ===== Command Moves (motion-input Hyper combos) =====
+function renderCommandMoves() {
+	commandMovesList.innerHTML = "";
+	if (!currentCharKey) return;
+	commandMoves.forEach((cm, idx) => {
+		const card = document.createElement("div");
+		card.className = "cm-card";
+
+		const head = document.createElement("div");
+		head.className = "cm-card-head";
+		const title = document.createElement("span");
+		title.textContent = cm.label || cm.key || `Command move #${idx + 1}`;
+		const removeBtn = document.createElement("button");
+		removeBtn.textContent = "Remove";
+		removeBtn.onclick = () => {
+			commandMoves.splice(idx, 1);
+			renderCommandMoves();
+		};
+		head.appendChild(title);
+		head.appendChild(removeBtn);
+		card.appendChild(head);
+
+		const grid = document.createElement("div");
+		grid.className = "field-grid";
+
+		const addText = (fieldKey, label, placeholder) => {
+			const wrap = document.createElement("label");
+			wrap.textContent = label;
+			const input = document.createElement("input");
+			input.type = "text";
+			if (placeholder) input.placeholder = placeholder;
+			input.value = cm[fieldKey] || "";
+			input.oninput = () => {
+				cm[fieldKey] = input.value;
+				if (fieldKey === "key" || fieldKey === "label") title.textContent = cm.label || cm.key || `Command move #${idx + 1}`;
+			};
+			wrap.appendChild(input);
+			grid.appendChild(wrap);
+		};
+		const addNum = (fieldKey, label) => {
+			const wrap = document.createElement("label");
+			wrap.textContent = label;
+			const input = document.createElement("input");
+			input.type = "number";
+			input.value = cm[fieldKey] ?? "";
+			input.oninput = () => {
+				cm[fieldKey] = input.value === "" ? null : Number(input.value);
+			};
+			wrap.appendChild(input);
+			grid.appendChild(wrap);
+		};
+
+		addText("key", "key (unique id)", "e.g. hyper1");
+		addText("label", "label (movelist name)", "e.g. Emit Large Tomato Sauce");
+		addNum("action", "action #");
+		addNum("damage", "damage");
+		addNum("kbBase", "kbBase");
+		addNum("kbGrowth", "kbGrowth");
+		addNum("angle", "angle");
+		addNum("priority", "priority");
+		card.appendChild(grid);
+
+		// Type + attack category, same options the normal slot editor uses.
+		const typeRow = document.createElement("div");
+		typeRow.style.cssText = "margin-top:6px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:10px;";
+		const mkSelect = (label, value, options, onchange) => {
+			const wrap = document.createElement("label");
+			wrap.style.cssText = "display:flex; align-items:center; gap:4px; color:#888;";
+			wrap.appendChild(document.createTextNode(label));
+			const select = document.createElement("select");
+			select.style.cssText = "background:#0b0c10; color:#e6e6e6; border:1px solid #33384a; font-family:'All Around The World', monospace; font-size:10px; padding:2px;";
+			for (const opt of options) {
+				const o = document.createElement("option");
+				o.value = opt;
+				o.textContent = opt;
+				if (value === opt) o.selected = true;
+				select.appendChild(o);
+			}
+			select.onchange = () => onchange(select.value);
+			wrap.appendChild(select);
+			return wrap;
+		};
+		if (!cm.type) cm.type = "melee";
+		if (!cm.attackType) cm.attackType = "Final/Super";
+		typeRow.appendChild(mkSelect("Type:", cm.type, ["melee", "projectile", "sweep"], (v) => { cm.type = v; renderCommandMoves(); }));
+		typeRow.appendChild(mkSelect("Category:", cm.attackType, ATTACK_TYPES, (v) => { cm.attackType = v; }));
+		card.appendChild(typeRow);
+
+		// Motion command - the two real recognized motions (see CommandBuffer._matchesMotion in
+		// lite-fighter.html: only qcf "D,DF,F" and qcb "D,DB,B" are actually implemented).
+		if (!cm.command) cm.command = { motion: "qcf", button: "special" };
+		const cmdRow = document.createElement("div");
+		cmdRow.style.cssText = "margin-top:6px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:10px;";
+		cmdRow.appendChild(mkSelect("Motion:", cm.command.motion, ["qcf", "qcb"], (v) => { cm.command.motion = v; }));
+		cmdRow.appendChild(mkSelect("+ Button:", cm.command.button, ["light", "medium", "heavy", "special"], (v) => { cm.command.button = v; }));
+		card.appendChild(cmdRow);
+		const cmdHint = document.createElement("div");
+		cmdHint.style.cssText = "font-size:9px; color:#666; margin-top:3px;";
+		cmdHint.textContent = "qcf = quarter-circle-forward (D, DF, F), qcb = quarter-circle-back (D, DB, B), then the chosen button - matches Spongebob.cmd's real commands, remapped onto this engine's 4-button tiers.";
+		card.appendChild(cmdHint);
+
+		// hitSpark/guardSpark, same convention as a normal move.
+		const sparkGrid = document.createElement("div");
+		sparkGrid.className = "field-grid";
+		sparkGrid.style.marginTop = "6px";
+		for (const field of ["hitSpark", "guardSpark"]) {
+			const wrap = document.createElement("label");
+			wrap.textContent = field;
+			const input = document.createElement("input");
+			input.type = "number";
+			input.placeholder = "(auto)";
+			input.value = cm[field] ?? "";
+			input.oninput = () => {
+				if (input.value === "") delete cm[field];
+				else cm[field] = Number(input.value);
+			};
+			wrap.appendChild(input);
+			sparkGrid.appendChild(wrap);
+		}
+		card.appendChild(sparkGrid);
+
+		// Projectile sub-fields, same shape/defaults a normal projectile-type slot uses.
+		if (cm.type === "projectile") {
+			if (!cm.projectile) cm.projectile = { ...PROJECTILE_DEFAULTS };
+			const proj = cm.projectile;
+			const projGrid = document.createElement("div");
+			projGrid.className = "field-grid";
+			projGrid.style.marginTop = "6px";
+			for (const field of ["speed", "offsetX", "offsetY", "life", "bodyAction", "hitSparkAction", "missSparkAction"]) {
+				const wrap = document.createElement("label");
+				wrap.textContent = field;
+				const input = document.createElement("input");
+				input.type = "number";
+				input.value = proj[field] ?? "";
+				input.oninput = () => {
+					proj[field] = input.value === "" ? (field.endsWith("Action") ? null : 0) : Number(input.value);
+				};
+				wrap.appendChild(input);
+				projGrid.appendChild(wrap);
+			}
+			card.appendChild(projGrid);
+		}
+
+		commandMovesList.appendChild(card);
+	});
+}
+
+addCommandMoveBtn.onclick = () => {
+	if (!currentCharKey) {
+		statusEl.textContent = "Load a character first.";
+		return;
+	}
+	commandMoves.push(DEFAULT_COMMAND_MOVE());
+	renderCommandMoves();
+};
+
+// ===== Summons (companion assist pool) =====
+function renderSummons() {
+	summonsBody.innerHTML = "";
+	if (!currentCharKey) return;
+
+	if (!summons) {
+		const enableBtn = document.createElement("button");
+		enableBtn.textContent = "+ Add summons for this character";
+		enableBtn.onclick = () => {
+			summons = { appearAction: null, cooldown: 12, sounds: { appear: [0, 0] }, pool: [] };
+			renderSummons();
+		};
+		summonsBody.appendChild(enableBtn);
+		return;
+	}
+
+	const topRow = document.createElement("div");
+	topRow.style.cssText = "display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;";
+
+	const fieldsGrid = document.createElement("div");
+	fieldsGrid.className = "field-grid";
+	fieldsGrid.style.flex = "1";
+	const addNum = (obj, fieldKey, label, placeholder) => {
+		const wrap = document.createElement("label");
+		wrap.textContent = label;
+		const input = document.createElement("input");
+		input.type = "number";
+		if (placeholder) input.placeholder = placeholder;
+		input.value = obj[fieldKey] ?? "";
+		input.oninput = () => {
+			obj[fieldKey] = input.value === "" ? null : Number(input.value);
+		};
+		wrap.appendChild(input);
+		fieldsGrid.appendChild(wrap);
+	};
+	addNum(summons, "appearAction", "appearAction #", "e.g. 1300");
+	addNum(summons, "cooldown", "cooldown (s)");
+	if (!Array.isArray(summons.sounds && summons.sounds.appear)) summons.sounds = { ...(summons.sounds || {}), appear: [0, 0] };
+	for (let i = 0; i < 2; i++) {
+		const wrap = document.createElement("label");
+		wrap.textContent = `appear sound [${i === 0 ? "group" : "index"}]`;
+		const input = document.createElement("input");
+		input.type = "number";
+		input.value = summons.sounds.appear[i];
+		input.oninput = () => {
+			summons.sounds.appear[i] = Number(input.value);
+		};
+		wrap.appendChild(input);
+		fieldsGrid.appendChild(wrap);
+	}
+	topRow.appendChild(fieldsGrid);
+
+	const disableBtn = document.createElement("button");
+	disableBtn.textContent = "Remove all summons";
+	disableBtn.style.cssText = "font-size:10px; padding:4px 8px; background:#242838; color:#ccc; border:1px solid #444a5e; cursor:pointer; border-radius:3px;";
+	disableBtn.onclick = () => {
+		summons = null;
+		renderSummons();
+	};
+	topRow.appendChild(disableBtn);
+	summonsBody.appendChild(topRow);
+
+	const poolHint = document.createElement("div");
+	poolHint.style.cssText = "font-size:10px; color:#888; margin:8px 0 4px;";
+	poolHint.textContent = `Pool (${summons.pool.length}) - one entry summoned at random per use:`;
+	summonsBody.appendChild(poolHint);
+
+	summons.pool.forEach((entry, idx) => {
+		const card = document.createElement("div");
+		card.className = "summon-card";
+		const head = document.createElement("div");
+		head.className = "summon-card-head";
+		const title = document.createElement("span");
+		title.textContent = entry.name || `Companion #${idx + 1}`;
+		const removeBtn = document.createElement("button");
+		removeBtn.textContent = "Remove";
+		removeBtn.onclick = () => {
+			summons.pool.splice(idx, 1);
+			renderSummons();
+		};
+		head.appendChild(title);
+		head.appendChild(removeBtn);
+		card.appendChild(head);
+
+		const grid = document.createElement("div");
+		grid.className = "field-grid";
+		const nameWrap = document.createElement("label");
+		nameWrap.textContent = "name";
+		const nameInput = document.createElement("input");
+		nameInput.type = "text";
+		nameInput.value = entry.name || "";
+		nameInput.oninput = () => {
+			entry.name = nameInput.value;
+			title.textContent = entry.name || `Companion #${idx + 1}`;
+		};
+		nameWrap.appendChild(nameInput);
+		grid.appendChild(nameWrap);
+		for (const field of ["attackAction", "damage", "kbBase", "kbGrowth", "angle", "hitSpark", "guardSpark"]) {
+			const wrap = document.createElement("label");
+			wrap.textContent = field;
+			const input = document.createElement("input");
+			input.type = "number";
+			input.placeholder = field === "hitSpark" || field === "guardSpark" ? "(auto)" : "";
+			input.value = entry[field] ?? "";
+			input.oninput = () => {
+				if (input.value === "" && (field === "hitSpark" || field === "guardSpark")) delete entry[field];
+				else entry[field] = Number(input.value);
+			};
+			wrap.appendChild(input);
+			grid.appendChild(wrap);
+		}
+		if (!Array.isArray(entry.sounds && entry.sounds.attack)) entry.sounds = { ...(entry.sounds || {}), attack: [0, 0] };
+		for (let i = 0; i < 2; i++) {
+			const wrap = document.createElement("label");
+			wrap.textContent = `attack sound [${i === 0 ? "group" : "index"}]`;
+			const input = document.createElement("input");
+			input.type = "number";
+			input.value = entry.sounds.attack[i];
+			input.oninput = () => {
+				entry.sounds.attack[i] = Number(input.value);
+			};
+			wrap.appendChild(input);
+			grid.appendChild(wrap);
+		}
+		card.appendChild(grid);
+		summonsBody.appendChild(card);
+	});
+
+	const addPoolBtn = document.createElement("button");
+	addPoolBtn.textContent = "+ Add companion";
+	addPoolBtn.style.marginTop = "4px";
+	addPoolBtn.onclick = () => {
+		summons.pool.push(DEFAULT_SUMMON_ENTRY());
+		renderSummons();
+	};
+	summonsBody.appendChild(addPoolBtn);
+}
+
+// ===== Import an existing moveset.json (custom-uploaded characters, or re-importing a locally
+// edited file for a built-in character) =====
+importMovesetBtn.onclick = () => {
+	if (!currentCharKey) {
+		statusEl.textContent = "Load a character first.";
+		return;
+	}
+	importMovesetInput.click();
+};
+importMovesetInput.onchange = () => {
+	const file = importMovesetInput.files[0];
+	if (!file) return;
+	const reader = new FileReader();
+	reader.onload = () => {
+		let data;
+		try {
+			data = JSON.parse(reader.result);
+		} catch (err) {
+			statusEl.textContent = `"${file.name}" isn't valid JSON.`;
+			importMovesetInput.value = "";
+			return;
+		}
+		if (applyMoveset(data)) {
+			renderSlots();
+			renderCommandMoves();
+			renderSummons();
+			renderActionList();
+			statusEl.textContent = `Imported "${file.name}" - ${Object.keys(assignments).length} moves, ${commandMoves.length} command moves${summons ? ", summons" : ""}.`;
+		} else {
+			statusEl.textContent = `"${file.name}" doesn't look like a moveset.json (no "moves" object found).`;
+		}
+		importMovesetInput.value = ""; // allow re-picking the same file later
+	};
+	reader.onerror = () => (statusEl.textContent = `Could not read "${file.name}".`);
+	reader.readAsText(file);
+};
+
+function exportMapping() {
+	if (!currentCharKey) return;
+	const exportName = customCharacters[currentCharKey] ? customCharacters[currentCharKey].name : currentCharKey;
+
+	// Attach pixel-perfect auto hitboxes to any assigned attack whose animation has no authored
+	// Clsn1 data at all - so a move never silently ships with zero hitbox just because its .air
+	// entry was never given real Clsn1 frames. Real Clsn1 data (if present on any frame) always
+	// wins over the auto outline; this only fills the gap, never overrides verified data.
+	const moves = {};
+	for (const [slotKey, assigned] of Object.entries(assignments)) {
+		moves[slotKey] = { ...assigned };
+		if (!assigned.pose && actions[assigned.action] && !actionHasHit(actions[assigned.action])) {
+			const autoFrames = computeAutoHitboxFrames(atlas, actions[assigned.action]);
+			if (autoFrames.some((f) => f)) {
+				moves[slotKey].autoHitbox = {
+					source: "pixel-alpha-outline",
+					note: "No authored Clsn1 for this animation - per-frame spans derived from the sprite's own opaque pixels (one {y,x1,x2} span per pixel row, same anchor-relative coordinate space Clsn1/Clsn2 use). null entries = that frame is fully transparent.",
+					frames: autoFrames,
+				};
+			}
+		}
+	}
+
+	const out = { character: exportName, moves };
+	// Optional top-level blocks - only included when actually populated, matching moveset.json's
+	// own convention (a character with no command moves/summons/poseSounds just omits the key
+	// entirely, same as SpongeBob's own file did for characters that don't need them).
+	if (commandMoves.length) {
+		out.commandMoves = { moves: commandMoves.map((cm) => ({ ...cm, command: { ...cm.command } })) };
+		if (commandMovesNote) out.commandMoves.note = commandMovesNote;
+	}
+	if (summons) {
+		out.summons = { ...summons, sounds: { ...summons.sounds }, pool: summons.pool.map((p) => ({ ...p, sounds: { ...p.sounds } })) };
+		if (summonsNote) out.summons.note = summonsNote;
+	}
+	if (Object.keys(poseSounds).length) {
+		out.poseSounds = { ...poseSounds };
+	}
+	const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement("a");
+	a.href = url;
+	a.download = `${exportName}-moveset.json`;
+	a.click();
+	URL.revokeObjectURL(url);
+}
+
+// ===== Avatar (character-select screen) =====
+// Trims a canvas down to the bounding box of its non-transparent pixels. Used both to tighten a
+// cropped sprite frame and (harmlessly, since it'll usually already be tight) an uploaded image.
+function trimToOpaqueBBox(srcCanvas) {
+	const w = srcCanvas.width, h = srcCanvas.height;
+	if (w === 0 || h === 0) return srcCanvas;
+	const sctx = srcCanvas.getContext("2d");
+	const { data } = sctx.getImageData(0, 0, w, h);
+	let minX = w, minY = h, maxX = -1, maxY = -1;
+	for (let y = 0; y < h; y++) {
+		for (let x = 0; x < w; x++) {
+			if (data[(y * w + x) * 4 + 3] > 0) {
+				if (x < minX) minX = x;
+				if (x > maxX) maxX = x;
+				if (y < minY) minY = y;
+				if (y > maxY) maxY = y;
+			}
+		}
+	}
+	if (maxX < minX || maxY < minY) return srcCanvas; // fully transparent - nothing to trim to
+	const tw = maxX - minX + 1, th = maxY - minY + 1;
+	const out = document.createElement("canvas");
+	out.width = tw;
+	out.height = th;
+	out.getContext("2d").drawImage(srcCanvas, minX, minY, tw, th, 0, 0, tw, th);
+	return out;
+}
+
+// Fixed portrait size - EVERY character ships an avatar.png at exactly these dimensions (see
+// lite-fighter.html's select-screen carousel card, sized 1:1 to match, so the shipped file is
+// already exactly what renders on the card - no runtime cropping/letterboxing surprises, and
+// every character reads as the same size on the select screen regardless of source art size).
+const AVATAR_W = 360, AVATAR_H = 384;
+
+/** Cover-fits a source canvas into a fixed AVATAR_W x AVATAR_H canvas (nearest-neighbor, matching
+ * this game's pixel-art style) - same framing math as lite-fighter.html's drawPortrait(), just
+ * baked into the exported file itself instead of computed at render time. */
+function coverFitToAvatarSize(srcCanvas) {
+	const out = document.createElement("canvas");
+	out.width = AVATAR_W;
+	out.height = AVATAR_H;
+	const octx = out.getContext("2d");
+	const boxAspect = AVATAR_W / AVATAR_H;
+	const imgAspect = srcCanvas.width / srcCanvas.height;
+	let dw, dh;
+	if (imgAspect > boxAspect) {
+		dh = AVATAR_H;
+		dw = AVATAR_H * imgAspect;
+	} else {
+		dw = AVATAR_W;
+		dh = AVATAR_W / imgAspect;
+	}
+	octx.imageSmoothingEnabled = false;
+	octx.drawImage(srcCanvas, (AVATAR_W - dw) / 2, (AVATAR_H - dh) / 2, dw, dh);
+	return out;
+}
+
+/** Builds the avatar source canvas from the atlas sprite behind the currently previewed frame,
+ * trimmed to its opaque pixels then cover-fit into the fixed AVATAR_W x AVATAR_H portrait size -
+ * so the select-screen card's cover-fit rendering fills with actual character instead of a lot of
+ * empty atlas-cell padding, and every character's exported avatar.png is uniformly sized. */
+function setAvatarFromCurrentFrame() {
+	if (selectedAction === null || !actions[selectedAction] || !atlas) return;
+	const frame = actions[selectedAction].frames[previewFrameIndex];
+	if (!frame) return;
+	const spr = atlas.get(frame.group, frame.image);
+	if (!spr) {
+		statusEl.textContent = "This frame has no sprite in the atlas - pick another frame.";
+		return;
+	}
+	const raw = document.createElement("canvas");
+	raw.width = spr.w;
+	raw.height = spr.h;
+	raw.getContext("2d").drawImage(atlas.image, spr.x, spr.y, spr.w, spr.h, 0, 0, spr.w, spr.h);
+	const trimmed = trimToOpaqueBBox(raw);
+
+	avatarSourceCanvas = coverFitToAvatarSize(trimmed);
+	drawAvatarPreview();
+	statusEl.textContent = `Avatar set from action #${selectedAction} frame ${previewFrameIndex + 1} (${AVATAR_W}x${AVATAR_H}). Download it below.`;
+}
+
+/** Loads a user-picked image file, cover-fit into the same fixed AVATAR_W x AVATAR_H portrait size
+ * every character uses - so a manually uploaded reference image ships at the same uniform
+ * dimensions as an auto-generated one instead of whatever arbitrary size it was uploaded at. */
+function setAvatarFromFile(file) {
+	const img = new Image();
+	img.onload = () => {
+		const c = document.createElement("canvas");
+		c.width = img.naturalWidth;
+		c.height = img.naturalHeight;
+		c.getContext("2d").drawImage(img, 0, 0);
+		avatarSourceCanvas = coverFitToAvatarSize(c);
+		drawAvatarPreview();
+		statusEl.textContent = `Avatar set from uploaded image "${file.name}" (${AVATAR_W}x${AVATAR_H}). Download it below.`;
+	};
+	img.onerror = () => (statusEl.textContent = `Could not read "${file.name}" as an image.`);
+	img.src = URL.createObjectURL(file);
+}
+
+/** Cover-fits avatarSourceCanvas into the small preview box, same framing math lite-fighter.html's
+ * drawPortrait() uses for the real select-screen card, so what you see here is what you'll get. */
+function drawAvatarPreview() {
+	const w = avatarCanvas.width, h = avatarCanvas.height;
+	actx.imageSmoothingEnabled = false;
+	actx.clearRect(0, 0, w, h);
+	// checkerboard so transparency is visible instead of reading as black
+	const CELL = 8;
+	for (let y = 0; y < h; y += CELL) {
+		for (let x = 0; x < w; x += CELL) {
+			actx.fillStyle = ((x / CELL + y / CELL) % 2 === 0) ? "#20232e" : "#181a22";
+			actx.fillRect(x, y, CELL, CELL);
+		}
+	}
+	downloadAvatarBtn.disabled = !avatarSourceCanvas;
+	downloadIconBtn.disabled = !avatarSourceCanvas;
+	if (!avatarSourceCanvas) return;
+	const boxAspect = w / h;
+	const imgAspect = avatarSourceCanvas.width / avatarSourceCanvas.height;
+	let dw, dh;
+	if (imgAspect > boxAspect) {
+		dh = h;
+		dw = h * imgAspect;
+	} else {
+		dw = w;
+		dh = w / imgAspect;
+	}
+	actx.drawImage(avatarSourceCanvas, (w - dw) / 2, (h - dh) / 2, dw, dh);
+}
+
+function downloadCanvas(canvas, filename) {
+	canvas.toBlob((blob) => {
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = filename;
+		a.click();
+		URL.revokeObjectURL(url);
+	}, "image/png");
+}
+
+function exportAvatarName() {
+	return customCharacters[currentCharKey] ? customCharacters[currentCharKey].name : currentCharKey || "character";
+}
+
+// ===== Test Match (shared physics/combat preview engine) =====
+// A scoped-down, self-contained reimplementation of lite-fighter.html's core movement/combat
+// physics (same constants: gravity, move speed, jump velocity, knockback/hitstun formulas) for
+// previewing a character's real animations and attacks - inside the mapper tools, not the full
+// game. What's intentionally NOT here: blocking/shield, stocks/KOs, AI, summons, title/select
+// screens. Attacks can be thrown from any state (not gated on grounded/crouching/airborne like
+// the real game) since the point here is "let me see this animation/hitbox," not simulating
+// exact game rules.
+const TM_ACTION = { STAND: 0, CROUCH: 10, WALK_FWD: 20, WALK_BACK: 21, JUMP_UP: 41, JUMP_FALL: 44, HIT: 5030 };
+const TM_GRAVITY = 1800; // px/s^2 - matches lite-fighter.html's GRAVITY
+const TM_MOVE_SPEED = 220; // px/s - matches MOVE_SPEED
+const TM_JUMP_VELOCITY = -877; // matches JUMP_VELOCITY
+const TM_AIR_MAX_SPEED = 260; // matches AIR_MAX_SPEED
+const TM_TERMINAL_VELOCITY = 1500; // matches TERMINAL_VELOCITY
+const TM_GROUND_KB_FRICTION = 1400; // matches GROUND_KNOCKBACK_FRICTION
+const TM_MIN_HITSTUN = 0.15; // matches MIN_HITSTUN
+const TM_MAX_HITSTUN = 0.7; // matches MAX_HITSTUN
+const TM_BOUNCE_RESTITUTION = 0.85; // matches lite-fighter.html's BOUNCE_RESTITUTION - left/right walls
+const TM_GROUND_BOUNCE_MIN_VY = 480; // matches GROUND_BOUNCE_MIN_VY - downward launch speed needed to arm a ground bounce
+const TM_GROUND_BOUNCE_RESTITUTION = 0.5; // matches GROUND_BOUNCE_RESTITUTION
+const TM_GROUND_BOUNCE_PERCENT_SCALE = 6; // matches GROUND_BOUNCE_PERCENT_SCALE
+const TM_STOCK_COUNT = 3; // matches the real game's default stock count
+const TM_DEFAULT_BLAST_ABOVE_Y = -900; // matches lite-fighter.html's STAGE.blastAbove fallback
+
+function tmTicksToSeconds(t) {
+	return t / 60; // MUGEN .air frame durations are in 60fps ticks, same convention parseAir()/lite-fighter.html use
+}
+
+// ===== Starfield (Test Match backdrop) =====
+// Mirrors lite-fighter.html's own drawStars()/ensureStars() - a fixed screen-space field of
+// twinkling dots, sized to whatever canvas calls it (the real game's is 1280x720; the mapper
+// tools' Test Match overlay uses a smaller W/H) - only ever actually visible above a stage's own
+// art (or in the void, since this tool has no stage art of its own - see openTestMatch()).
+let tmStars = [];
+let tmStarsKey = "";
+function tmEnsureStars(w, h) {
+	const key = `${w}x${h}`;
+	if (tmStarsKey === key && tmStars.length) return;
+	tmStarsKey = key;
+	const target = Math.floor((w * h) / 9000);
+	tmStars = [];
+	for (let i = 0; i < target; i++) {
+		tmStars.push({ x: Math.random(), y: Math.random(), size: 1 + Math.random() * 1.8, phase: Math.random() * Math.PI * 2, speed: 1.5 + Math.random() * 2.5 });
+	}
+}
+function tmDrawStars(ctx, w, h, time) {
+	tmEnsureStars(w, h);
+	ctx.save();
+	for (const s of tmStars) {
+		const twinkle = 0.35 + 0.65 * Math.abs(Math.sin((time / 500) * s.speed + s.phase));
+		ctx.globalAlpha = twinkle;
+		ctx.fillStyle = "#ffffff";
+		const x = s.x * w, y = s.y * h, sz = s.size;
+		ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
+	}
+	ctx.restore();
+	ctx.globalAlpha = 1;
+}
+
+/** True if any box in listA overlaps any box in listB - same AABB test as combat.js's anyOverlap(). */
+function tmAnyOverlap(listA, listB) {
+	for (const a of listA) {
+		for (const b of listB) {
+			if (a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]) return true;
+		}
+	}
+	return false;
+}
+
+class TMChar {
+	constructor(opts) {
+		this.atlas = opts.atlas || null;
+		this.actions = opts.actions || null;
+		this.poses = opts.poses || {}; // { idle, walkFwd, walkBack, crouch, jumpUp, jumpFall, hitStand, hitAir } -> action numbers
+		this.moves = opts.moves || {}; // slotKey -> { action, damage, kbBase, kbGrowth, angle, label }
+		this.isDummy = !!opts.isDummy;
+		this.x = opts.x || 0;
+		this.y = 0; // world units, 0 = ground, negative = above ground
+		this.vx = 0;
+		this.vy = 0;
+		this.facing = opts.facing || 1;
+		this.scale = opts.scale || 3.72; // matches lite-fighter.html's calibrated BASE_SCALE - see openTestMatch()
+		this.percent = 0;
+		this.grounded = true;
+		this.crouching = false;
+		this.hitstunTimer = 0;
+		this.attackRecoveryTimer = 0;
+		this.currentSlot = null;
+		this.hitLanded = false;
+		this.actionNum = this.poses.idle ?? TM_ACTION.STAND;
+		this.frameIndex = 0;
+		this.frameTimer = 0;
+		this.flash = 0; // brief hit-feedback timer
+		// Generic upright hurtbox for a dummy target with no real sprite/Clsn2 data of its own.
+		this.dummyHurtbox = [[-30, -95, 30, 0]];
+		// Stocks/KOs and ground-bounce - see receiveHit()/update()/respawn() below, mirrors
+		// lite-fighter.html's Character class (character.js).
+		this.stocks = opts.stocks ?? TM_STOCK_COUNT;
+		this.spawnX = this.x;
+		this.groundBounceArmed = false;
+		this.groundBounceKb = 0;
+	}
+
+	play(actionNum, force) {
+		if (!this.actions || !this.actions[actionNum]) return false;
+		if (this.actionNum === actionNum && !force) return true;
+		this.actionNum = actionNum;
+		this.frameIndex = 0;
+		this.frameTimer = 0;
+		return true;
+	}
+
+	currentFrame() {
+		const act = this.actions && this.actions[this.actionNum];
+		return act ? act.frames[this.frameIndex] : null;
+	}
+
+	/** Transforms a list of local (unscaled, unflipped, anchor-relative) [x1,y1,x2,y2] boxes into world space. */
+	worldBoxes(list) {
+		if (!list || !list.length) return [];
+		const flip = this.facing === -1;
+		const s = this.scale;
+		return list.map(([x1, y1, x2, y2]) => {
+			let wx1 = x1 * s, wx2 = x2 * s;
+			if (flip) {
+				const t = wx1;
+				wx1 = -wx2;
+				wx2 = -t;
+			}
+			return [this.x + wx1, this.y + y1 * s, this.x + wx2, this.y + y2 * s];
+		});
+	}
+
+	startAttack(slotKey) {
+		const move = this.moves[slotKey];
+		if (!move || !this.actions || !this.actions[move.action]) return false;
+		if (this.hitstunTimer > 0 || this.attackRecoveryTimer > 0 || this.currentSlot) return false;
+		this.currentSlot = slotKey;
+		this.hitLanded = false;
+		this.play(move.action, true);
+		if (this.grounded) this.vx = 0;
+		return true;
+	}
+
+	receiveHit(move, fromX) {
+		this.percent += move.damage;
+		const dir = this.x >= fromX ? 1 : -1;
+		const kb = move.kbBase + this.percent * move.kbGrowth;
+		const rad = (move.angle * Math.PI) / 180;
+		this.vx = dir * kb * Math.cos(rad);
+		this.vy = -kb * Math.sin(rad);
+		this.grounded = false;
+		this.hitstunTimer = Math.min(TM_MAX_HITSTUN, Math.max(TM_MIN_HITSTUN, kb / 900));
+		// Arms a ground bounce if this hit's own downward component is a genuine spike/meteor/stomp
+		// (steep + strong enough) - see TM_GROUND_BOUNCE_MIN_VY. Only actually triggers if still in
+		// hitstun from THIS hit at the moment of landing - see the landing branch in update().
+		this.groundBounceArmed = this.vy > TM_GROUND_BOUNCE_MIN_VY;
+		this.groundBounceKb = kb;
+		this.flash = 0.15;
+		this.currentSlot = null;
+	}
+
+	/** Reset to spawn position with 0 percent - call after a stock is lost. Mirrors character.js's respawn(). */
+	respawn() {
+		this.x = this.spawnX;
+		this.y = 0;
+		this.vx = 0;
+		this.vy = 0;
+		this.percent = 0;
+		this.hitstunTimer = 0;
+		this.attackRecoveryTimer = 0;
+		this.currentSlot = null;
+		this.groundBounceArmed = false;
+		this.groundBounceKb = 0;
+		this.grounded = true;
+		this.crouching = false;
+	}
+
+	update(dt, input, opponent, platforms, worldLeft, worldRight, blastAboveY) {
+		if (this.flash > 0) this.flash = Math.max(0, this.flash - dt);
+
+		if (this.hitstunTimer > 0) {
+			this.hitstunTimer = Math.max(0, this.hitstunTimer - dt);
+		} else if (this.attackRecoveryTimer > 0) {
+			this.attackRecoveryTimer = Math.max(0, this.attackRecoveryTimer - dt);
+		} else if (!this.currentSlot && !this.isDummy && input) {
+			this.crouching = !!input.down && this.grounded;
+			if (input.left && !input.right) {
+				this.vx = this.grounded ? -TM_MOVE_SPEED : Math.max(this.vx - 1600 * dt, -TM_AIR_MAX_SPEED);
+			} else if (input.right && !input.left) {
+				this.vx = this.grounded ? TM_MOVE_SPEED : Math.min(this.vx + 1600 * dt, TM_AIR_MAX_SPEED);
+			} else if (this.grounded) {
+				this.vx = 0;
+			}
+			if (input.jumpPressed && this.grounded) {
+				this.vy = TM_JUMP_VELOCITY;
+				this.grounded = false;
+				input.jumpPressed = false;
+			}
+			if (input.attackQueue && input.attackQueue.length) {
+				for (const slotKey of input.attackQueue) this.startAttack(slotKey);
+				input.attackQueue.length = 0;
+			}
+		}
+
+		// Face the opponent when free to act - standard fighting-game convention.
+		if (opponent && !this.currentSlot && this.hitstunTimer <= 0 && !this.isDummy) {
+			this.facing = opponent.x >= this.x ? 1 : -1;
+		}
+
+		this.vy = Math.min(this.vy + TM_GRAVITY * dt, TM_TERMINAL_VELOCITY);
+		if (this.grounded && this.hitstunTimer > 0) {
+			const decay = TM_GROUND_KB_FRICTION * dt;
+			if (Math.abs(this.vx) <= decay) this.vx = 0;
+			else this.vx -= Math.sign(this.vx) * decay;
+		}
+
+		const prevY = this.y;
+		this.x += this.vx * dt;
+		// Bounce off the left/right stage edges instead of walking/flying past them - only the
+		// top blast zone is an actual KO (see below). Only reflects an outward-moving character,
+		// same rule lite-fighter.html uses (see BOUNCE_RESTITUTION there).
+		if (worldLeft != null) {
+			const marginedLeft = worldLeft + 20, marginedRight = worldRight - 20;
+			if (this.x < marginedLeft) {
+				this.x = marginedLeft;
+				if (this.vx < 0) this.vx = -this.vx * TM_BOUNCE_RESTITUTION;
+			} else if (this.x > marginedRight) {
+				this.x = marginedRight;
+				if (this.vx > 0) this.vx = -this.vx * TM_BOUNCE_RESTITUTION;
+			}
+		}
+		this.y += this.vy * dt;
+
+		this.grounded = false;
+		if (this.vy >= 0) {
+			let landY = 0; // stage floor
+			if (platforms && !(input && input.down)) {
+				for (const p of platforms) {
+					if (this.x >= p.x1 && this.x <= p.x2 && prevY <= p.y && this.y >= p.y && p.y < landY) landY = p.y;
+				}
+			}
+			if (this.y >= landY) {
+				// Ground bounce only ever fires on the real stage floor (landY === 0), never a
+				// platform - mirrors lite-fighter.html's landing branch (its platform-landing check
+				// is an entirely separate `else if`, so a platform never arms/consumes a bounce).
+				if (landY === 0 && prevY < 0 && this.groundBounceArmed && this.hitstunTimer > 0) {
+					this.y = 0;
+					this.vy = -(this.groundBounceKb * TM_GROUND_BOUNCE_RESTITUTION + this.percent * TM_GROUND_BOUNCE_PERCENT_SCALE);
+					this.groundBounceArmed = false; // one bounce per arming hit
+					this.grounded = false; // still airborne, now launched back upward
+				} else {
+					this.y = landY;
+					this.vy = 0;
+					this.grounded = true;
+				}
+			}
+		}
+		// Top blast zone - the only way to lose a stock here (left/right/bottom are all solid
+		// walls/floor, handled above). Mirrors lite-fighter.html's isOffStage()/checkKO().
+		if (this.y < (blastAboveY ?? TM_DEFAULT_BLAST_ABOVE_Y)) {
+			this.stocks = Math.max(0, this.stocks - 1);
+			this.respawn();
+		}
+
+		if (this.hitstunTimer > 0) {
+			this.play(this.grounded ? this.poses.hitStand ?? TM_ACTION.HIT : this.poses.hitAir ?? TM_ACTION.HIT);
+		} else if (!this.currentSlot) {
+			if (!this.grounded) {
+				this.play(this.vy < 0 ? this.poses.jumpUp ?? TM_ACTION.JUMP_UP : this.poses.jumpFall ?? TM_ACTION.JUMP_FALL);
+			} else if (this.crouching) {
+				this.play(this.poses.crouch ?? TM_ACTION.CROUCH);
+			} else if (Math.abs(this.vx) > 1) {
+				const movingFwd = Math.sign(this.vx) === this.facing;
+				this.play(movingFwd ? this.poses.walkFwd ?? TM_ACTION.WALK_FWD : this.poses.walkBack ?? TM_ACTION.WALK_BACK);
+			} else {
+				this.play(this.poses.idle ?? TM_ACTION.STAND);
+			}
+		}
+
+		const act = this.actions && this.actions[this.actionNum];
+		if (act && act.frames.length) {
+			const frame = act.frames[this.frameIndex];
+			if (frame) {
+				if (this.currentSlot && !this.hitLanded && frame.clsn1 && frame.clsn1.length && opponent) {
+					const myBoxes = this.worldBoxes(frame.clsn1);
+					const oppFrame = opponent.currentFrame();
+					const oppBoxes = opponent.worldBoxes((oppFrame && oppFrame.clsn2) || opponent.dummyHurtbox || []);
+					if (tmAnyOverlap(myBoxes, oppBoxes)) {
+						const move = this.moves[this.currentSlot];
+						opponent.receiveHit(move, this.x);
+						this.hitLanded = true;
+					}
+				}
+				this.frameTimer += dt;
+				const dur = frame.time < 0 ? Infinity : tmTicksToSeconds(frame.time);
+				if (this.frameTimer >= dur) {
+					this.frameTimer = 0;
+					if (this.frameIndex < act.frames.length - 1) {
+						this.frameIndex++;
+					} else if (this.currentSlot) {
+						this.currentSlot = null;
+						this.attackRecoveryTimer = 0.06;
+					} else {
+						this.frameIndex = act.loopstart ? act.loopstart - 1 : 0;
+					}
+				}
+			}
+		}
+	}
+
+	draw(ctx, worldToScreenX, worldToScreenY, zoomMul = 1) {
+		const sx = worldToScreenX(this.x);
+		const sy = worldToScreenY(this.y);
+		const frame = this.currentFrame();
+		ctx.save();
+		if (this.flash > 0) ctx.filter = "brightness(2.2) saturate(0) sepia(1) hue-rotate(-50deg) saturate(6)";
+		if (this.atlas && frame) {
+			this.atlas.draw(ctx, frame.group, frame.image, sx, sy, this.facing === -1, false, this.scale * zoomMul);
+		} else if (this.isDummy) {
+			// Sized at 1.75x its old fixed dimensions (90px/36px/100px/14px) - the same ratio the real
+			// character's own BASE_SCALE just went up by (200px -> 350px target height), so this
+			// generic placeholder still reads as roughly character-sized next to the (now taller) player.
+			ctx.fillStyle = this.flash > 0 ? "#ff5d5d" : "#5dd0ff";
+			ctx.fillRect(sx - 31.5 * zoomMul, sy - 157.5 * zoomMul, 63 * zoomMul, 157.5 * zoomMul);
+			ctx.beginPath();
+			ctx.arc(sx, sy - 175 * zoomMul, 24.5 * zoomMul, 0, Math.PI * 2);
+			ctx.fill();
+		}
+		ctx.restore();
+	}
+}
+// openTestMatch(cfg) - builds a fullscreen overlay, runs the match loop, tears itself down on close.
+// cfg: {
+//   title, player: {atlas, actions, poses, moves, scale}, opponent: 'dummy',
+//   worldLeft, worldRight, groundYFrac (0..1, used if no worldToScreenY given),
+//   renderBackground(ctx, w, h, worldToScreenX, worldToScreenY) - optional custom backdrop,
+//   platforms: [{x1,x2,y,invisible}]
+// }
+let tmActive = null; // { rafId, keydown, keyup, overlay } - so a second call cleans up the first
+function closeTestMatch() {
+	if (!tmActive) return;
+	cancelAnimationFrame(tmActive.rafId);
+	window.removeEventListener("keydown", tmActive.keydown);
+	window.removeEventListener("keyup", tmActive.keyup);
+	tmActive.overlay.remove();
+	tmActive = null;
+}
+
+function openTestMatch(cfg) {
+	closeTestMatch();
+
+	const W = cfg.canvasW || 1000, H = cfg.canvasH || 560;
+	const overlay = document.createElement("div");
+	overlay.style.cssText =
+		"position:fixed; inset:0; background:#000; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:'All Around The World', monospace;";
+	const canvas = document.createElement("canvas");
+	canvas.width = W;
+	canvas.height = H;
+	canvas.style.cssText = "background:#0b0c10; max-width:96vw; max-height:80vh; border:1px solid #33384a;";
+	const hud = document.createElement("div");
+	hud.style.cssText = "color:#ccc; font-size:11px; padding:8px 4px; text-align:center; max-width:960px;";
+	const attackSlots = Object.keys(cfg.player.moves || {});
+	const keyLegend = attackSlots
+		.slice(0, 9)
+		.map((slot, i) => `${i + 1}=${(cfg.player.moves[slot].label || slot)}`)
+		.join("  ");
+	hud.innerHTML =
+		`<b>${cfg.title || "Test"}</b> &nbsp; Arrows/WASD move &middot; Up/W jump &middot; Down/S crouch &middot; ${keyLegend || "(no attacks assigned)"} &nbsp; <span id="tmPercent"></span>` +
+		` &nbsp; <button id="tmCloseBtn">Close (Esc)</button>`;
+	overlay.appendChild(canvas);
+	overlay.appendChild(hud);
+	document.body.appendChild(overlay);
+
+	const ctx = canvas.getContext("2d");
+	ctx.imageSmoothingEnabled = false;
+
+	const scaleFactor = W / 1280;
+	// Vertical play area this test camera frames: worldTop (negative, above ground - covers jump
+	// height) .. worldBottom (usually a small positive margin below ground, for feet/shadow). The
+	// bottom of this range is ALWAYS anchored to the bottom of the canvas (see worldToScreenY
+	// below) - if the play area is ever taller than the canvas at the current zoom, it's the TOP
+	// that goes off-screen, never the bottom/floor.
+	const worldTop = cfg.worldTop ?? -260;
+	const worldBottom = cfg.worldBottom ?? 40;
+	// 1080-wide (±540) matches the real game's fixed per-stage width - see lite-fighter.html's
+	// STAGE.left/right.
+	const worldLeft = cfg.worldLeft ?? -540;
+	const worldRight = cfg.worldRight ?? 540;
+	// Top blast zone - crossing it costs a stock (see TMChar.update()). This tool has no stage
+	// authoring of its own, so it always uses the same default lite-fighter.html falls back to.
+	const blastAboveY = cfg.blastAboveY ?? TM_DEFAULT_BLAST_ABOVE_Y;
+
+	// 3.72 matches lite-fighter.html's calibrated BASE_SCALE (~350px standing height) - see
+	// testCharBtn's onclick handler above for the full explanation.
+	const player = new TMChar({ ...cfg.player, x: -120, facing: 1, scale: (cfg.player.scale || 3.72) * scaleFactor });
+	const opponent = new TMChar({ isDummy: true, x: 120, facing: -1, scale: (cfg.player.scale || 3.72) * scaleFactor });
+
+	const input = { left: false, right: false, up: false, down: false, jumpPressed: false, attackQueue: [] };
+	const keydown = (e) => {
+		if (e.key === "Escape") return closeTestMatch();
+		if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") input.left = true;
+		else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") input.right = true;
+		else if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
+			if (!input.up) input.jumpPressed = true;
+			input.up = true;
+		} else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") input.down = true;
+		else {
+			const n = Number(e.key);
+			if (n >= 1 && n <= 9 && attackSlots[n - 1]) input.attackQueue.push(attackSlots[n - 1]);
+		}
+	};
+	const keyup = (e) => {
+		if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") input.left = false;
+		else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") input.right = false;
+		else if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") input.up = false;
+		else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") input.down = false;
+	};
+	window.addEventListener("keydown", keydown);
+	window.addEventListener("keyup", keyup);
+	hud.querySelector("#tmCloseBtn").onclick = closeTestMatch;
+
+	let last = performance.now();
+	const percentEl = hud.querySelector("#tmPercent");
+	// Camera state, smoothed frame to frame (same idea as lite-fighter.html's real match camera):
+	// zooms out as the two fighters separate, zooms/pans back in as they close - and on top of
+	// that, never zooms in further than what's needed to keep the whole calibrated vertical play
+	// area on-screen, bottom-anchored.
+	// ZOOM_MIN/ZOOM_MAX both pulled back 25% from their original 0.45/1 (see lite-fighter.html's
+	// own ZOOM_MAX comment for the full reasoning) - now that characters render at BASE_SCALE's
+	// bumped-up ~350px standing height instead of ~200px, a full zoom=1 rest view read as
+	// uncomfortably close on the stage even though it shows the exact same world-space width as
+	// before; zooming out compensates by showing more of the stage around the (still genuinely
+	// bigger-than-before) characters.
+	const ZOOM_MIN = 0.34, ZOOM_MAX = 0.75, ZOOM_NEAR_DIST = 260;
+	let camZoom = ZOOM_MAX, camX = 0;
+	// Screen row where world y=0 (the ground) renders - normally pinned to the resting baseline
+	// (baseGroundYScreen, derived below from worldBottom/camZoom, same value the old fixed
+	// worldToScreenY formula always produced), but pans further DOWN the canvas, revealing black
+	// space (+ starfield) above, whenever a player needs more headroom than that baseline already
+	// shows - e.g. a big jump, recovery, or a ground-bounce sending them up toward the top blast
+	// zone. Mirrors lite-fighter.html's own groundYScreen exactly (see its frame() camera block) -
+	// zoom itself is untouched by this, only the vertical framing shifts, so characters never
+	// resize just from going high. -1 = "not yet initialized", snaps to the real baseline on the
+	// very first frame instead of smoothing in from a wrong default.
+	let groundYScreen = -1;
+	function loop(now) {
+		const dt = Math.min((now - last) / 1000, 1 / 20);
+		last = now;
+
+		player.update(dt, input, opponent, cfg.platforms, worldLeft, worldRight, blastAboveY);
+		opponent.update(dt, null, player, cfg.platforms, worldLeft, worldRight, blastAboveY);
+
+		const dist = Math.abs(player.x - opponent.x);
+		const worldSpan = Math.max(1, worldRight - worldLeft);
+		const zoomT = Math.max(0, Math.min(1, (dist - ZOOM_NEAR_DIST) / Math.max(1, worldSpan - ZOOM_NEAR_DIST)));
+		let targetZoom = ZOOM_MAX - zoomT * (ZOOM_MAX - ZOOM_MIN);
+		// Never so zoomed-in that the vertical play area needs more height than the canvas has -
+		// zoom out further if it does, so the floor/bottom boundary stays anchored at the bottom
+		// with only the top ever clipping. (This is a static safety clamp on the calibrated
+		// worldTop..worldBottom window - separate from, and layered under, the dynamic headroom
+		// panning below, which reacts to where the players actually are right now.)
+		const vertFitZoom = H / Math.max(1, worldBottom - worldTop);
+		targetZoom = Math.max(0.2, Math.min(targetZoom, vertFitZoom, ZOOM_MAX));
+		camZoom += (targetZoom - camZoom) * Math.min(1, 4 * dt);
+
+		const halfViewW = W / 2 / camZoom;
+		const maxCamX = Math.max(0, worldRight - halfViewW);
+		const targetCamX = Math.max(-maxCamX, Math.min(maxCamX, (player.x + opponent.x) / 2));
+		camX += (targetCamX - camX) * Math.min(1, 6 * dt);
+
+		const screenCenterX = W / 2 - camX * camZoom;
+		const worldToScreenX = (wx) => screenCenterX + wx * camZoom;
+
+		// Vertical camera reveal - pan groundYScreen down toward the canvas bottom (never touching
+		// zoom) whenever a player needs more headroom above than the resting baseline already shows.
+		const CAMERA_TOP_MARGIN = 90; // world units of headroom kept above the highest player at rest
+		const CAMERA_BOTTOM_SCREEN_MARGIN = 12; // px kept between the ground row and the canvas's true bottom edge
+		const baseGroundYScreen = H - worldBottom * camZoom; // resting position - identical to the old fixed formula's worldToScreenY(0)
+		const highestPlayerY = Math.min(player.y, opponent.y); // most negative = highest above ground
+		const neededTopWorldY = Math.min(0, highestPlayerY - CAMERA_TOP_MARGIN);
+		const neededHeadroomPx = Math.max(0, -neededTopWorldY) * camZoom;
+		const maxGroundYScreen = H - CAMERA_BOTTOM_SCREEN_MARGIN;
+		const targetGroundYScreen = Math.min(maxGroundYScreen, Math.max(baseGroundYScreen, neededHeadroomPx));
+		groundYScreen = groundYScreen < 0 ? targetGroundYScreen : groundYScreen + (targetGroundYScreen - groundYScreen) * Math.min(1, 5 * dt);
+		// Bottom of the vertical play area pinned to the bottom of the canvas AT REST (wy = worldBottom
+		// -> screenY = H, same as before); everything above it scales with camZoom, and the whole
+		// mapping now pans down together with groundYScreen when extra headroom is needed, revealing
+		// real black canvas rows above the art instead of ever stretching/zooming to compensate.
+		const worldToScreenY = cfg.worldToScreenY || ((wy) => groundYScreen + wy * camZoom);
+
+		ctx.clearRect(0, 0, W, H);
+		ctx.fillStyle = "#05060c"; // deep-space fallback - this tool has no stage art of its own, so this is the whole backdrop
+		ctx.fillRect(0, 0, W, H);
+		tmDrawStars(ctx, W, H, now); // fixed screen-space backdrop - stays put under camera pan/zoom
+		if (cfg.renderBackground) cfg.renderBackground(ctx, W, H, worldToScreenX, worldToScreenY);
+		// (no "else" flat-fill here - the starfield/deep-space fill above is the default backdrop.)
+		// ground line
+		ctx.strokeStyle = "#ffd75d55";
+		ctx.setLineDash([4, 4]);
+		ctx.beginPath();
+		ctx.moveTo(0, worldToScreenY(0));
+		ctx.lineTo(W, worldToScreenY(0));
+		ctx.stroke();
+		ctx.setLineDash([]);
+		if (cfg.platforms) {
+			ctx.strokeStyle = "#5dd0ffaa";
+			for (const p of cfg.platforms) {
+				if (p.invisible) continue;
+				ctx.beginPath();
+				ctx.moveTo(worldToScreenX(p.x1), worldToScreenY(p.y));
+				ctx.lineTo(worldToScreenX(p.x2), worldToScreenY(p.y));
+				ctx.stroke();
+			}
+		}
+
+		const drawOrder = player.x <= opponent.x ? [player, opponent] : [opponent, player];
+		for (const c of drawOrder) c.draw(ctx, worldToScreenX, worldToScreenY, camZoom);
+		if (cfg.renderForeground) cfg.renderForeground(ctx, W, H, worldToScreenX, worldToScreenY);
+
+		percentEl.textContent = `You: ${Math.round(player.percent)}% (stocks: ${player.stocks})   Dummy: ${Math.round(opponent.percent)}% (stocks: ${opponent.stocks})`;
+
+		tmActive.rafId = requestAnimationFrame(loop);
+	}
+
+	tmActive = { rafId: 0, keydown, keyup, overlay };
+	tmActive.rafId = requestAnimationFrame(loop);
+}
+
+// ===== Events =====
+
+loadBtn.onclick = () => loadCharacter(charPicker.value).catch((e) => (statusEl.textContent = "Error: " + e.message));
+exportBtn.onclick = exportMapping;
+uploadBtn.onclick = () => {
+	uploadPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+	uploadInput.click();
+};
+uploadDropzone.onclick = () => uploadInput.click();
+["dragenter", "dragover"].forEach((evt) =>
+	uploadDropzone.addEventListener(evt, (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		uploadDropzone.classList.add("dragover");
+	})
+);
+["dragleave", "dragend"].forEach((evt) =>
+	uploadDropzone.addEventListener(evt, (e) => {
+		e.preventDefault();
+		uploadDropzone.classList.remove("dragover");
+	})
+);
+uploadDropzone.addEventListener("drop", (e) => {
+	e.preventDefault();
+	e.stopPropagation();
+	uploadDropzone.classList.remove("dragover");
+	const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
+	if (!files.length) return;
+	handleUpload(files).catch((err) => (statusEl.textContent = "Upload error: " + err.message));
+});
+uploadInput.onchange = () => {
+	handleUpload(uploadInput.files).catch((e) => (statusEl.textContent = "Upload error: " + e.message));
+	uploadInput.value = ""; // allow re-selecting the same files later (e.g. after fixing a missing file)
+};
+boxToggle.onclick = () => (showBoxes = !showBoxes);
+testCharBtn.onclick = () => {
+	if (!atlas || !actions || !currentCharKey) {
+		statusEl.textContent = "Load a character first.";
+		return;
+	}
+	// Pull pose action numbers straight from the mapper's own assignments (auto-filled from the
+	// UNIVERSAL_ACTIONS scan for most characters); TMChar falls back to the standard KFM-template
+	// numbers for anything left unassigned, so this still works on a freshly-loaded character.
+	const poses = {};
+	for (const key of ["idle", "walkFwd", "walkBack", "crouch", "jumpUp", "jumpFall", "hitStand", "hitAir"]) {
+		if (assignments[key]) poses[key] = assignments[key].action;
+	}
+	// Only real melee attacks (not projectile-type specials, which need a traveling hitbox this
+	// scoped-down test harness doesn't simulate) become playable moves, in SLOT_DEFS order so the
+	// 1-9 key legend reads jab/tilts/smashes/aerials/specials in a sensible, predictable order.
+	const moves = {};
+	for (const slot of SLOT_DEFS) {
+		if (slot.pose) continue;
+		const a = assignments[slot.key];
+		if (a && a.type !== "projectile" && actions[a.action]) {
+			moves[slot.key] = { action: a.action, damage: a.damage, kbBase: a.kbBase, kbGrowth: a.kbGrowth, angle: a.angle, label: slot.label };
+		}
+	}
+	const displayName = CHARACTER_NAMES[currentCharKey] || (customCharacters[currentCharKey] && customCharacters[currentCharKey].name) || currentCharKey;
+	// BASE_SCALE (3.72) matches lite-fighter.html's own calibrated value (~350px standing height,
+	// measured from SpongeBob's real Clsn2Default hurtbox - see that file's BASE_SCALE comment),
+	// times this character's own SIZE_SCALE deviation (1 = none, the default for everyone right
+	// now) - same formula lite-fighter.html's startMatch() uses, so this preview is sized exactly
+	// like the real game instead of a flat, unrelated constant.
+	const BASE_SCALE = 3.72;
+	openTestMatch({
+		title: `Testing: ${displayName} (vs training dummy)`,
+		player: { atlas, actions, poses, moves, scale: BASE_SCALE * (SIZE_SCALE[currentCharKey] || 1) },
+		worldLeft: -540, // matches lite-fighter.html's fixed 1080-wide (±540) stage - see its STAGE.left/right
+		worldRight: 540,
+		platforms: null,
+	});
+};
+useFrameAsAvatarBtn.onclick = setAvatarFromCurrentFrame;
+avatarUploadBtn.onclick = () => avatarUploadInput.click();
+avatarUploadInput.onchange = () => {
+	if (avatarUploadInput.files[0]) setAvatarFromFile(avatarUploadInput.files[0]);
+	avatarUploadInput.value = ""; // allow re-picking the same file later
+};
+downloadAvatarBtn.onclick = () => {
+	if (avatarSourceCanvas) downloadCanvas(avatarSourceCanvas, `avatar.png`);
+};
+downloadIconBtn.onclick = () => {
+	if (!avatarSourceCanvas) return;
+	// Small face-icon fallback (see lite-fighter.html's iconImages loader/comment: 28x28,
+	// last-resort fallback if the avatar image fails to load) - built from the same source so
+	// it's a scaled-down match instead of a different, possibly inconsistent, crop. Cover-fit
+	// (not stretch) into the square so a tall/narrow avatar doesn't come out squashed.
+	const SIZE = 28;
+	const icon = document.createElement("canvas");
+	icon.width = SIZE;
+	icon.height = SIZE;
+	const ictx = icon.getContext("2d");
+	const imgAspect = avatarSourceCanvas.width / avatarSourceCanvas.height;
+	let dw, dh;
+	if (imgAspect > 1) {
+		dh = SIZE;
+		dw = SIZE * imgAspect;
+	} else {
+		dw = SIZE;
+		dh = SIZE / imgAspect;
+	}
+	ictx.drawImage(avatarSourceCanvas, (SIZE - dw) / 2, (SIZE - dh) / 2, dw, dh);
+	downloadCanvas(icon, `icon.png`);
+};
+filterInput.oninput = renderActionList;
+onlyHits.onchange = renderActionList;
+playPauseBtn.onclick = () => {
+	playing = !playing;
+	playPauseBtn.textContent = playing ? "Pause" : "Play";
+};
+document.getElementById("holdLastFrameToggle").onchange = (e) => {
+	holdLastFrame = e.target.checked;
+	previewTimer = 0;
+};
+document.getElementById("stepBack").onclick = () => {
+	if (selectedAction === null) return;
+	playing = false;
+	playPauseBtn.textContent = "Play";
+	previewFrameIndex = Math.max(0, previewFrameIndex - 1);
+	updatePreviewInfo();
+};
+document.getElementById("stepFwd").onclick = () => {
+	if (selectedAction === null || !actions[selectedAction]) return;
+	playing = false;
+	playPauseBtn.textContent = "Play";
+	previewFrameIndex = Math.min(actions[selectedAction].frames.length - 1, previewFrameIndex + 1);
+	updatePreviewInfo();
+};
+
+// ===== Main loop (preview animation only - this tool has no game logic) =====
+let last = performance.now();
+function loop(now) {
+	const dt = Math.min((now - last) / 1000, 1 / 20);
+	last = now;
+	tickPreview(dt);
+	drawPreview();
+	requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+drawAvatarPreview();
+
+if (charPicker.options.length > 0) {
+	charPicker.value = charPicker.options[0].value;
+	statusEl.textContent = "Pick a character and click Load";
+} else {
+	statusEl.textContent = "No characters found - the built-in roster failed to populate (see console)";
+	statusEl.style.color = "#ff6b6b";
+}
+
+
+  if (typeof statusEl !== 'undefined' && charPicker.options.length > 0) {
+    // leave the existing status text alone on a clean load - this is just here so a caught
+    // error below is guaranteed to be the ONLY thing that overwrites it if something goes wrong.
+  }
+} catch (initError) {
+  console.error('Character Mapper failed to initialize:', initError);
+  var statusEl2 = document.getElementById('status');
+  if (statusEl2) {
+    statusEl2.textContent = 'Failed to load: ' + initError.message + ' (see browser console for details)';
+    statusEl2.style.color = '#ff6b6b';
+  }
+  var charPicker2 = document.getElementById('charPicker');
+  if (charPicker2 && charPicker2.options.length === 0) {
+    var opt = document.createElement('option');
+    opt.textContent = 'Load failed - see status message above';
+    charPicker2.appendChild(opt);
+  }
+}
+
+</script>
+</body>
+</html>
