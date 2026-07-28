@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>K.O. Breaker · Toolkit</title>
+<style>
+  /* Same house font the other four tools use - ships as a real file at
+     assets/fonts/all-around-the-world.otf; every font-family here falls back to the JetBrains
+     Mono stack below if it fails to load, same tolerant pattern as lite-fighter.html etc. */
+  @font-face {
+    font-family: "All Around The World";
+    src: url("assets/fonts/all-around-the-world.otf") format("opentype");
+    font-display: swap;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+
+  :root{
+    --ink:#0b0c10;
+    --panel:#15171e;
+    --panel-2:#1a1d28;
+    --line:#2a2f3a;
+    --key:#ff3fc0;
+    --key-dim:#7a2358;
+    --paper:#eef0f3;
+    --dim:#828a9a;
+    --gold:#ffd75d;
+    --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    --display: 'All Around The World', var(--mono);
+    color-scheme: dark;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; min-height:100%; background:var(--ink); color:var(--paper); font-family:var(--mono); }
+  body{
+    padding: max(28px, env(safe-area-inset-top)) 20px max(40px, env(safe-area-inset-bottom));
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  /* Faint scanline wash, same retro-CRT texture language as lite-fighter.html's own applyRetroFX -
+     ties this launcher back to the game it's a front door for, without borrowing its canvas. */
+  body::before{
+    content:'';
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,.025) 0px, rgba(255,255,255,.025) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode: overlay;
+  }
+  body::after{
+    content:'';
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background: radial-gradient(ellipse 80% 55% at 50% -10%, rgba(255,63,192,.10), transparent 60%);
+  }
+
+  .wrap{ max-width:880px; margin:0 auto; position:relative; z-index:1; }
+
+  header{ margin: 4px 0 34px; }
+  .eyebrow{ font-size:11px; letter-spacing:.2em; color:var(--key); font-weight:700; text-transform:uppercase; display:flex; align-items:center; gap:8px; }
+  .eyebrow::before{ content:''; width:8px; height:8px; background:var(--key); display:inline-block; }
+  h1{
+    font-family: var(--display);
+    font-size: clamp(30px, 6.4vw, 46px);
+    line-height:1.05; margin:12px 0 10px; font-weight:800; letter-spacing:-0.01em;
+  }
+  h1 .dim{ color:var(--dim); }
+  .tagline{ color:var(--dim); font-size:14px; line-height:1.6; max-width:56ch; }
+
+  /* Tool select grid - deliberately not numbered 01/02/03/04: these four tools aren't a
+     sequence, they're independent destinations, so ordering markers would encode a false
+     "do this first" reading. A colored corner tag naming each tool's own role does the same
+     wayfinding job honestly instead. */
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap:14px;
+    margin-top: 6px;
+  }
+  @media (max-width: 640px){ .grid{ grid-template-columns: 1fr; } }
+
+  .card{
+    position:relative;
+    display:block;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px 20px 18px;
+    text-decoration:none;
+    color:inherit;
+    overflow:hidden;
+    transition: border-color .15s ease, transform .12s ease, background .15s ease;
+  }
+  .card:hover, .card:focus-visible{
+    border-color: var(--card-accent, var(--key));
+    background:var(--panel-2);
+    transform: translateY(-2px);
+  }
+  .card:active{ transform: translateY(0); }
+  .card:focus-visible{ outline: 2px solid var(--card-accent, var(--key)); outline-offset:2px; }
+
+  .card .tag{
+    display:inline-block;
+    font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+    color: var(--card-accent, var(--key));
+    background: color-mix(in srgb, var(--card-accent, var(--key)) 16%, transparent);
+    border:1px solid color-mix(in srgb, var(--card-accent, var(--key)) 40%, transparent);
+    border-radius:5px; padding:3px 8px; margin-bottom:12px;
+  }
+  .card h2{
+    font-family: var(--display);
+    font-size:19px; font-weight:800; margin:0 0 8px; letter-spacing:-0.01em;
+  }
+  .card p{
+    font-size:12.5px; line-height:1.55; color:var(--dim); margin:0 0 16px;
+    min-height: 2.6em;
+  }
+  .card .go{
+    display:flex; align-items:center; gap:6px;
+    font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color: var(--card-accent, var(--key));
+  }
+  .card .go svg{ width:13px; height:13px; transition: transform .15s ease; }
+  .card:hover .go svg{ transform: translateX(3px); }
+
+  .card .glyph{
+    position:absolute; right:14px; top:14px; font-size:26px; opacity:.5; line-height:1;
+    filter: grayscale(1);
+  }
+
+  footer{ margin-top:34px; color:var(--dim); font-size:11.5px; line-height:1.7; border-top:1px solid var(--line); padding-top:16px; }
+  footer code{ color:var(--paper); background:var(--panel-2); border:1px solid var(--line); border-radius:4px; padding:1px 5px; font-size:11px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="eyebrow">Dev Toolkit</div>
+      <h1>K.O. Breaker <span class="dim">Toolkit</span></h1>
+      <p class="tagline">Everything for building and running the roster in one place — play the game, author character movesets, lay out stages, or pull a fresh sprite atlas straight out of a <code>.sff</code>. Pick one below.</p>
+    </header>
+
+    <div class="grid">
+      <a class="card" href="lite-fighter.html" style="--card-accent:var(--gold)">
+        <div class="glyph">🎮</div>
+        <span class="tag">Play</span>
+        <h2>K.O. Breaker</h2>
+        <p>The actual game — Smash-style versus mode, full roster, stocks and percent, local co-op or CPU.</p>
+        <span class="go">Launch<svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+
+      <a class="card" href="character-mapper.html" style="--card-accent:#4fa8ff">
+        <div class="glyph">🧩</div>
+        <span class="tag">Author</span>
+        <h2>Character Mapper</h2>
+        <p>Build a character's full moveset.json — pose slots, attack tiers, projectiles, sweeps, summons, command moves.</p>
+        <span class="go">Open<svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+
+      <a class="card" href="stage-mapper.html" style="--card-accent:#4ade80">
+        <div class="glyph">🗺️</div>
+        <span class="tag">Author</span>
+        <h2>Stage Mapper</h2>
+        <p>Lay out platforms and background art for a stage and export the layout the game reads.</p>
+        <span class="go">Open<svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+
+      <a class="card" href="atlas-exporter.html" style="--card-accent:var(--key)">
+        <div class="glyph">📦</div>
+        <span class="tag">Import</span>
+        <h2>Sprite Atlas Exporter</h2>
+        <p>Pick a MUGEN/Ikemen <code style="background:none;border:none;padding:0;color:inherit;">.sff</code> (+ optional .air), preview it, and export the <code style="background:none;border:none;padding:0;color:inherit;">sprite_atlas_*.csv/.png</code> pair the game and mapper both read.</p>
+        <span class="go">Open<svg viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+    </div>
+
+    <footer>
+      All four tools are plain static HTML — open any card directly, or keep this page as the front door. A typical new-character pipeline runs left to right: export the atlas, author the moveset in Character Mapper, then play-test it in K.O. Breaker.
+    </footer>
+  </div>
+</body>
+</html>
