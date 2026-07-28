@@ -1,0 +1,1322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SFF → Atlas · Sprite Atlas Exporter</title>
+<style>
+  :root{
+    --ink:#12141a;
+    --panel:#1a1d24;
+    --panel-2:#20242d;
+    --line:#2a2f3a;
+    --key:#ff3fc0;
+    --key-dim:#7a2358;
+    --paper:#eef0f3;
+    --dim:#828a9a;
+    --ok:#4ade80;
+    --warn:#f5a623;
+    --hit:#ff5a5a;
+    --hurt:#4fa8ff;
+    --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap');
+
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--ink); color:var(--paper); font-family:var(--mono);}
+  body{ padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); min-height:100vh; }
+  .wrap{max-width:640px; margin:0 auto;}
+
+  header{margin: 6px 0 20px;}
+  .eyebrow{ font-size:11px; letter-spacing:.18em; color:var(--key); font-weight:700; text-transform:uppercase; display:flex; align-items:center; gap:8px; }
+  .eyebrow::before{content:''; width:8px; height:8px; background:var(--key); display:inline-block;}
+  h1{ font-size: clamp(26px, 7vw, 34px); line-height:1.05; margin:8px 0 6px; font-weight:800; letter-spacing:-0.01em; }
+  h1 .dim{color:var(--dim); font-weight:500;}
+  .tagline{color:var(--dim); font-size:13.5px; line-height:1.5; max-width:52ch;}
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:14px; }
+  .card h2{ font-size:11px; text-transform:uppercase; letter-spacing:.14em; color:var(--dim); margin:0 0 12px; font-weight:700; }
+  .card h2 small{text-transform:none; letter-spacing:0; color:var(--dim); font-weight:500;}
+
+  .drop{ border:1.5px dashed var(--line); border-radius:8px; padding:20px 16px; text-align:center; transition: border-color .15s, background .15s; }
+  .drop.drag{border-color:var(--key); background:rgba(255,63,192,.06);}
+  .drop input[type=file]{display:none;}
+  .drop + .drop{margin-top:10px;}
+  .pick-btn{
+    display:inline-flex; align-items:center; gap:8px; background:var(--key); color:#1a0413;
+    font-family:var(--mono); font-weight:700; font-size:14px; letter-spacing:.02em;
+    border:none; border-radius:7px; padding:12px 20px; cursor:pointer; min-height:44px;
+  }
+  .pick-btn.secondary{background:var(--panel-2); color:var(--paper); border:1px solid var(--line);}
+  .pick-btn:active{transform:translateY(1px);}
+  .drop .hint{color:var(--dim); font-size:11.5px; margin-top:10px;}
+  .filename{font-size:12.5px; color:var(--paper); margin-top:10px; word-break:break-all;}
+  .filename .ok{color:var(--ok);}
+
+  .status-line{display:flex; justify-content:space-between; align-items:center; font-size:12.5px; color:var(--dim); margin-bottom:8px;}
+  .status-line b{color:var(--paper); font-weight:600;}
+  .bar{height:6px; background:var(--panel-2); border-radius:99px; overflow:hidden; border:1px solid var(--line);}
+  .bar-fill{height:100%; width:0%; background:linear-gradient(90deg,var(--key-dim),var(--key)); transition:width .12s;}
+  .error{ border:1px solid #7a2323; background:rgba(255,80,80,.08); color:#ff9a9a; border-radius:8px; padding:12px 14px; font-size:12.5px; line-height:1.5; margin-bottom:14px; }
+  .note{ border:1px solid var(--line); background:var(--panel-2); color:var(--dim); border-radius:8px; padding:10px 12px; font-size:11.5px; line-height:1.5; margin-top:10px; }
+  .note b{color:var(--paper);}
+
+  .opts{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .opt label{display:block; font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;}
+  .opt select, .opt input[type=number]{
+    width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--paper);
+    font-family:var(--mono); font-size:14px; padding:9px 10px; border-radius:6px;
+  }
+  .opt.check{display:flex; align-items:center; gap:8px; grid-column:1/-1;}
+  .opt.check input{width:18px; height:18px; accent-color:var(--key);}
+  .opt.check label{margin:0; font-size:12.5px; color:var(--paper); text-transform:none; letter-spacing:0;}
+  .opt.full{grid-column:1/-1;}
+
+  .preview-wrap{
+    background-image:
+      linear-gradient(45deg,#000 25%,transparent 25%), linear-gradient(-45deg,#000 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#000 75%), linear-gradient(-45deg,transparent 75%,#000 75%);
+    background-size:16px 16px; background-position:0 0,0 8px,8px -8px,-8px 0;
+    background-color:#2c2f36;
+    border:1px solid var(--line); border-radius:6px; position:relative; overflow:auto; max-height:52vh;
+  }
+  #atlasCanvas{display:block; image-rendering:pixelated; cursor:crosshair;}
+  #previewCanvas{display:block; image-rendering:pixelated; margin:0 auto;}
+  .canvas-scroll{position:relative;}
+
+  .frame-info{ margin-top:10px; padding:10px 12px; background:var(--panel-2); border:1px solid var(--line); border-radius:7px; font-size:12px; display:none; }
+  .frame-info.show{display:block;}
+  .frame-info .row{display:flex; justify-content:space-between; padding:2px 0; color:var(--dim);}
+  .frame-info .row b{color:var(--key); font-weight:600;}
+
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px;}
+  .stat{background:var(--panel-2); border:1px solid var(--line); border-radius:7px; padding:10px 12px;}
+  .stat .n{font-size:19px; font-weight:800; color:var(--paper);}
+  .stat .l{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; margin-top:2px;}
+  .stat.ok .n{color:var(--ok);}
+
+  .actions{display:flex; gap:10px; margin-top:14px;}
+  .btn{
+    flex:1; text-align:center; font-family:var(--mono); font-weight:700; font-size:13.5px;
+    padding:14px 10px; border-radius:7px; border:1px solid var(--line); cursor:pointer;
+    text-decoration:none; color:var(--paper); background:var(--panel-2); min-height:48px;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .btn.primary{background:var(--key); color:#1a0413; border-color:var(--key);}
+  .btn.small{flex:none; padding:10px 16px; min-height:40px; font-size:12.5px;}
+  .btn[disabled]{opacity:.4; pointer-events:none;}
+  .btn:active{transform:translateY(1px);}
+
+  footer{color:var(--dim); font-size:11px; line-height:1.6; text-align:center; margin-top:22px; padding-bottom:8px;}
+  footer code{color:var(--paper);}
+
+  .warnlist{margin-top:10px; font-size:11.5px; color:var(--warn); max-height:110px; overflow:auto;}
+  .warnlist div{padding:3px 0; border-top:1px solid var(--line);}
+
+  .mode-toggle{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px;}
+  .mode-btn{
+    background:var(--panel-2); border:1px solid var(--line); border-radius:7px; padding:12px 10px;
+    text-align:left; cursor:pointer; color:var(--dim); min-height:56px;
+  }
+  .mode-btn b{display:block; color:var(--paper); font-size:13px; margin-bottom:2px;}
+  .mode-btn span{font-size:10.5px; line-height:1.3; display:block;}
+  .mode-btn.active{border-color:var(--key); background:rgba(255,63,192,.08);}
+  .mode-btn.active b{color:var(--key);}
+
+  .filelist{ max-height:44vh; overflow:auto; border:1px solid var(--line); border-radius:6px; background:var(--panel-2); }
+  .filelist .row{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-bottom:1px solid var(--line); font-size:12px; }
+  .filelist .row:last-child{border-bottom:none;}
+  .filelist canvas.thumb{
+    width:28px; height:28px; object-fit:contain; background-image:
+      linear-gradient(45deg,#000 25%,transparent 25%), linear-gradient(-45deg,#000 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#000 75%), linear-gradient(-45deg,transparent 75%,#000 75%);
+    background-size:8px 8px; background-position:0 0,0 4px,4px -4px,-4px 0; background-color:#2c2f36;
+    border-radius:3px; flex-shrink:0; image-rendering:pixelated;
+  }
+  .filelist .meta{flex:1; min-width:0;}
+  .filelist .meta .n{color:var(--paper); font-weight:600;}
+  .filelist .meta .d{color:var(--dim); font-size:10.5px;}
+  .filelist .more{padding:10px; text-align:center; color:var(--dim); font-size:11.5px;}
+
+  .preview-controls{display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;}
+  .preview-controls select{
+    flex:1; min-width:120px; background:var(--panel-2); border:1px solid var(--line); color:var(--paper);
+    font-family:var(--mono); font-size:13px; padding:9px 10px; border-radius:6px;
+  }
+  .icon-btn{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--paper); border-radius:6px;
+    width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:15px;
+  }
+  .icon-btn.active{border-color:var(--key); color:var(--key);}
+  .icon-btn:active{transform:translateY(1px);}
+  .action-meta{font-size:11px; color:var(--dim); margin-top:8px; display:flex; justify-content:space-between;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Mugen / Ikemen GO</div>
+    <h1>Sprite Atlas <span class="dim">Exporter</span></h1>
+    <p class="tagline">Pick a <code>.sff</code> (and optionally its matching <code>.air</code>), preview the real animation, swap palettes, and export a <code>sprite_atlas_*.csv/.png</code> pair your game reads directly — entirely on your device.</p>
+  </header>
+
+  <div class="card">
+    <h2>01 · Source files</h2>
+    <div class="drop" id="dropSff">
+      <input type="file" id="sffInput" accept=".sff">
+      <button class="pick-btn" id="pickSffBtn" type="button">Choose .sff file</button>
+      <div class="hint">Required — the character's sprite archive</div>
+      <div class="filename" id="sffFilename"></div>
+    </div>
+    <div class="drop" id="dropAir">
+      <input type="file" id="airInput" accept=".air">
+      <button class="pick-btn secondary" id="pickAirBtn" type="button">Choose .air file (optional)</button>
+      <div class="hint">Adds real animation playback to the preview below</div>
+      <div class="filename" id="airFilename"></div>
+    </div>
+  </div>
+
+  <div id="parseProgress" class="card" style="display:none;">
+    <div class="status-line"><span id="parseStatusText">Working…</span><b id="parseStatusPct">0%</b></div>
+    <div class="bar"><div class="bar-fill" id="parseBarFill"></div></div>
+  </div>
+
+  <div id="parseError"></div>
+
+  <div class="card" id="previewCard" style="display:none;">
+    <h2>02 · Preview <small id="previewSubhead"></small></h2>
+
+    <div id="paletteRow" class="opts" style="margin-bottom:12px; display:none;">
+      <div class="opt full">
+        <label>Palette</label>
+        <select id="paletteSelect"></select>
+      </div>
+    </div>
+    <div id="paletteNote"></div>
+
+    <div id="animControls" style="display:none;">
+      <div class="preview-controls">
+        <select id="actionSelect"></select>
+        <button class="icon-btn" id="playPauseBtn" type="button" title="Play/pause">⏸</button>
+        <button class="icon-btn" id="hitboxBtn" type="button" title="Show hitboxes">▦</button>
+      </div>
+    </div>
+
+    <div class="preview-wrap" id="animPreviewWrap" style="display:none;">
+      <canvas id="previewCanvas" width="320" height="280"></canvas>
+    </div>
+    <div class="action-meta" id="actionMeta" style="display:none;"></div>
+
+    <div class="preview-wrap" id="atlasPreviewWrap" style="display:none;">
+      <div class="canvas-scroll"><canvas id="atlasCanvas"></canvas></div>
+    </div>
+    <div class="frame-info" id="frameInfo"></div>
+    <div class="note" id="noAirNote" style="display:none;">
+      No <code>.air</code> loaded — showing the packed atlas instead. Add a matching <code>.air</code> file above to preview real animations with correct pivots and hitboxes.
+    </div>
+  </div>
+
+  <div class="card" id="exportCard" style="display:none;">
+    <h2>03 · Export</h2>
+    <div class="note" style="margin-top:0; margin-bottom:14px;">
+      Files will be named <b id="basenamePreview">sprite_atlas_name.*</b>. Your <code>.air</code> must be named to match (<b id="airNamePreview">name.air</b>) for the game to load this as one character.
+    </div>
+
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="modeAtlasBtn" type="button" data-mode="atlas">
+        <b>Game atlas</b><span>sprite_atlas CSV + PNG, drop-in for your engine</span>
+      </button>
+      <button class="mode-btn" id="modeLooseBtn" type="button" data-mode="loose">
+        <b>Loose + ZIP</b><span>One PNG per frame + generic JSON/CSV</span>
+      </button>
+    </div>
+
+    <div id="atlasOpts" class="opts">
+      <div class="opt">
+        <label>Max atlas width</label>
+        <select id="maxWidth">
+          <option value="auto" selected>Auto</option>
+          <option value="512">512 px</option>
+          <option value="1024">1024 px</option>
+          <option value="2048">2048 px</option>
+          <option value="4096">4096 px</option>
+        </select>
+      </div>
+      <div class="opt">
+        <label>Padding</label>
+        <input type="number" id="padding" value="1" min="0" max="16">
+      </div>
+      <div class="opt check">
+        <input type="checkbox" id="pow2">
+        <label for="pow2">Round atlas size up to power of two</label>
+      </div>
+    </div>
+
+    <div id="looseOpts" class="opts" style="display:none;">
+      <div class="opt check" style="grid-column:1/-1;">
+        <input type="checkbox" id="dedupe" checked>
+        <label for="dedupe">Save each unique frame once (linked/shared sprites reference the same file)</label>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;">
+      <button class="btn primary" id="runBtn" type="button" style="width:100%;">Build export</button>
+    </div>
+  </div>
+
+  <div id="progressCard" class="card" style="display:none;">
+    <h2>04 · Building</h2>
+    <div class="status-line"><span id="statusText">Working…</span><b id="statusPct">0%</b></div>
+    <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+    <div class="warnlist" id="warnList"></div>
+  </div>
+
+  <div id="errorCard"></div>
+
+  <div class="card" id="resultCardAtlas" style="display:none;">
+    <h2>05 · Result</h2>
+    <div class="stats">
+      <div class="stat"><div class="n" id="statFrames">–</div><div class="l">Frames</div></div>
+      <div class="stat"><div class="n" id="statSize">–</div><div class="l">Atlas size</div></div>
+      <div class="stat ok"><div class="n" id="statEff">–</div><div class="l">Packing eff.</div></div>
+    </div>
+    <div class="actions">
+      <a class="btn primary" id="downloadPng" download="atlas.png">Download PNG</a>
+      <a class="btn primary" id="downloadCsv" download="atlas.csv">Download CSV</a>
+    </div>
+    <div class="actions">
+      <a class="btn" id="downloadJson" download="atlas.json" style="width:100%;">Download JSON (extra, generic)</a>
+    </div>
+  </div>
+
+  <div class="card" id="resultCardLoose" style="display:none;">
+    <h2>05 · Package contents</h2>
+    <div class="filelist" id="fileList"></div>
+    <div class="stats">
+      <div class="stat"><div class="n" id="statFramesL">–</div><div class="l">Sprites</div></div>
+      <div class="stat"><div class="n" id="statFilesL">–</div><div class="l">PNG files</div></div>
+      <div class="stat ok"><div class="n" id="statZipSize">–</div><div class="l">ZIP size</div></div>
+    </div>
+    <div class="actions">
+      <a class="btn primary" id="downloadZip" download="sprites.zip" style="width:100%;">Download ZIP</a>
+    </div>
+  </div>
+
+  <footer>
+    Runs fully client-side — nothing is uploaded anywhere.<br>
+    Formats: SFFv1 (PCX/RLE) · SFFv2 raw / <code>RLE8</code> / <code>RLE5</code> / <code>LZ5</code> / embedded PNG.
+  </footer>
+</div>
+
+<script>
+// =====================================================================
+// SFF parser with palette-bank support — validated against a reference
+// Python decoder byte-for-byte, and palette-swap correctness verified
+// with a two-palette synthetic file, before being embedded here.
+// =====================================================================
+var SFFParser = (function () {
+  'use strict';
+  const SIGNATURE=[0x45,0x6c,0x65,0x63,0x62,0x79,0x74,0x65,0x53,0x70,0x72,0x00];
+  function checkSignature(bytes){ for (let i=0;i<12;i++) if (bytes[i]!==SIGNATURE[i]) return false; return true; }
+
+  function rlePcxDecode(rle,width,height,bpl){
+    const out=new Uint8Array(width*height); const n=rle.length; let i=0,j=0,k=0;
+    while(j<out.length){
+      let d=i<n?rle[i]:0, cnt=1; if(i<n-1)i++;
+      if(d>=0xc0){ cnt=d&0x3f; d=i<n?rle[i]:0; if(i<n-1)i++; }
+      for(;cnt>0;cnt--){ if(k<width&&j<out.length){out[j]=d;j++;} k++; if(k===bpl){k=0;cnt=1;} }
+    }
+    return out;
+  }
+  function rle8Decode(rle,width,height){
+    const out=new Uint8Array(width*height); const n=rle.length; let i=0,j=0;
+    while(j<out.length){
+      let d=i<n?rle[i]:0, cnt=1; if(i<n-1)i++;
+      if((d&0xc0)===0x40){ cnt=d&0x3f; d=i<n?rle[i]:0; if(i<n-1)i++; }
+      for(;cnt>0;cnt--){ if(j<out.length){out[j]=d;j++;} }
+    }
+    return out;
+  }
+  function rle5Decode(rle,width,height){
+    const out=new Uint8Array(width*height); const n=rle.length; const rb=idx=>idx<n?rle[idx]:0;
+    let i=0,j=0;
+    while(j<out.length){
+      let rl=rb(i); if(i<n-1)i++;
+      let dl=rb(i)&0x7f, c=0;
+      if(rb(i)>>7!==0){ if(i<n-1)i++; c=rb(i); }
+      if(i<n-1)i++;
+      for(;;){
+        if(j<out.length){ out[j]=c; j++; }
+        rl-=1;
+        if(rl<0){ dl-=1; if(dl<0)break; c=rb(i)&0x1f; rl=rb(i)>>5; if(i<n-1)i++; }
+      }
+    }
+    return out;
+  }
+  function lz5Decode(rle,width,height){
+    const out=new Uint8Array(width*height); const n=rle.length; const rb=idx=>idx<n?rle[idx]:0;
+    let i=0,j=0; let ct=rb(i),cts=0,rbv=0,rbc=0; if(i<n-1)i++;
+    while(j<out.length){
+      let d=rb(i); if(i<n-1)i++;
+      if(ct&(1<<cts)){
+        let cnt;
+        if((d&0x3f)===0){ d=((d<<2)|rb(i))+1; if(i<n-1)i++; cnt=rb(i)+2; if(i<n-1)i++; }
+        else{
+          rbv|=(d&0xc0)>>rbc; rbc+=2; cnt=d&0x3f;
+          if(rbc<8){ d=rb(i)+1; if(i<n-1)i++; } else { d=rbv+1; rbv=0; rbc=0; }
+        }
+        for(;;){ if(j<out.length){ const src=j-d; out[j]=(src>=0&&src<out.length)?out[src]:0; j++; } cnt-=1; if(cnt<0)break; }
+      } else {
+        let cnt;
+        if((d&0xe0)===0){ cnt=rb(i)+8; if(i<n-1)i++; } else { cnt=d>>5; d&=0x1f; }
+        for(;cnt>0;cnt--){ if(j<out.length){ out[j]=d; j++; } }
+      }
+      cts+=1; if(cts>=8){ ct=rb(i); cts=0; if(i<n-1)i++; }
+    }
+    return out;
+  }
+  function makeReader(buf){
+    const dv=new DataView(buf), u8arr=new Uint8Array(buf);
+    return {
+      u8:o=>dv.getUint8(o), i16:o=>dv.getInt16(o,true), u16:o=>dv.getUint16(o,true),
+      u32:o=>dv.getUint32(o,true), bytes:(o,len)=>u8arr.subarray(o,o+len),
+    };
+  }
+  function indexedToRGBA(indices,palette){
+    const out=new Uint8ClampedArray(indices.length*4);
+    for(let p=0;p<indices.length;p++){
+      const c=palette[indices[p]]||[0,0,0,0];
+      out[p*4]=c[0]; out[p*4+1]=c[1]; out[p*4+2]=c[2];
+      out[p*4+3]= indices[p]===0 ? 0 : c[3];
+    }
+    return out;
+  }
+  function parseV1(r){
+    const imageTotal=r.u32(20), firstSubfileOffset=r.u32(24);
+    const sprites=[]; let offset=firstSubfileOffset;
+    const bank=[]; const bankIndexOf=new Map();
+    function bankIndexFor(paletteArr){
+      if (bankIndexOf.has(paletteArr)) return bankIndexOf.get(paletteArr);
+      const idx = bank.length;
+      bank.push({ index: idx, colors: paletteArr, label: 'Palette ' + (idx+1) });
+      bankIndexOf.set(paletteArr, idx);
+      return idx;
+    }
+    for(let idx=0; idx<imageTotal; idx++){
+      const nextOffset=r.u32(offset), length=r.u32(offset+4);
+      const axisX=r.i16(offset+8), axisY=r.i16(offset+10);
+      const group=r.i16(offset+12), number=r.i16(offset+14);
+      const link=r.u16(offset+16), palSame=r.u8(offset+18);
+      const data=r.bytes(offset+32,length);
+      if(length===0){
+        const src=sprites[link];
+        sprites.push({index:idx,group,number,axisX,axisY,
+          width:src?src.width:0, height:src?src.height:0,
+          format:'linked', paletteIndex:-1, linked:true, linkIndex:link,
+          rgba:src?src.rgba:null, indices:src?src.indices:null,
+          paletteBankIndex: src?src.paletteBankIndex:null});
+        if(nextOffset===0)break; offset=nextOffset; continue;
+      }
+      const encoding=data[2];
+      const xmin=data[4]|(data[5]<<8), ymin=data[6]|(data[7]<<8);
+      const xmax=data[8]|(data[9]<<8), ymax=data[10]|(data[11]<<8);
+      const bpl=data[66]|(data[67]<<8);
+      const width=xmax-xmin+1, height=ymax-ymin+1;
+      let palette, pxData;
+      if(palSame && sprites.length){
+        palette=sprites[sprites.length-1].palette; pxData=data.subarray(128);
+      } else {
+        pxData=data.subarray(128, data.length-768);
+        const palBytes=data.subarray(data.length-768);
+        palette=[];
+        for(let c=0;c<256;c++) palette.push([palBytes[c*3],palBytes[c*3+1],palBytes[c*3+2],255]);
+      }
+      let indices;
+      if(encoding===1) indices=rlePcxDecode(pxData,width,height,bpl);
+      else { indices=new Uint8Array(width*height); indices.set(pxData.subarray(0,width*height)); }
+      const rgba=indexedToRGBA(indices,palette);
+      const paletteBankIndex = bankIndexFor(palette);
+      sprites.push({index:idx,group,number,axisX,axisY,width,height,
+        format:encoding===1?'pcx-rle':'pcx-raw', paletteIndex:-1, linked:false, linkIndex:null,
+        palette, rgba, indices, paletteBankIndex});
+      if(nextOffset===0)break; offset=nextOffset;
+    }
+    return {version:'1', spriteCount:imageTotal, paletteCount:0, sprites, paletteBank: bank};
+  }
+  const FORMAT_NAMES={0:'raw/linked',1:'invalid',2:'rle8',3:'rle5',4:'lz5',10:'png-indexed',11:'png-rgb',12:'png-rgba'};
+  function loadV2Palette(r,palOffsetTable,idx,ldataOffset,forceOpaque,cache){
+    if(cache.has(idx)) return cache.get(idx);
+    const seen=new Set(); let i=idx, dataOffset=0, dataLength=0;
+    while(!seen.has(i)){
+      seen.add(i);
+      const node=palOffsetTable+i*16;
+      const linkIdx=r.u16(node+6);
+      dataOffset=r.u32(node+8); dataLength=r.u32(node+12);
+      if(dataLength!==0) break;
+      i=linkIdx;
+    }
+    const raw=r.bytes(ldataOffset+dataOffset, dataLength);
+    const colors=[];
+    for(let c=0;c+3<Math.min(raw.length,1024);c+=4){
+      let a=raw[c+3]; if(forceOpaque)a=255;
+      colors.push([raw[c],raw[c+1],raw[c+2],a]);
+    }
+    while(colors.length<256) colors.push([0,0,0,0]);
+    cache.set(idx,colors);
+    return colors;
+  }
+  function parseV2(r){
+    const spriteOffset=r.u32(36), spriteTotal=r.u32(40);
+    const paletteOffset=r.u32(44), paletteTotal=r.u32(48);
+    const ldataOffset=r.u32(52), tdataOffset=r.u32(60);
+    const forceOpaque=r.u8(13)===0;
+    const palCache=new Map(); const sprites=[]; const NODE_SIZE=28;
+    const bank=[];
+    for (let i = 0; i < paletteTotal; i++) {
+      const colors = loadV2Palette(r, paletteOffset, i, ldataOffset, forceOpaque, palCache);
+      bank.push({ index: i, colors, label: 'Palette ' + (i + 1) });
+    }
+    for(let idx=0; idx<spriteTotal; idx++){
+      const base=spriteOffset+idx*NODE_SIZE;
+      const group=r.i16(base+0), number=r.i16(base+2);
+      const width=r.u16(base+4), height=r.u16(base+6);
+      const axisX=r.i16(base+8), axisY=r.i16(base+10);
+      const link=r.u16(base+12), fmt=r.u8(base+14);
+      const dataOffset=r.u32(base+16), dataLength=r.u32(base+20);
+      const paletteIndex=r.u16(base+24), flags=r.u16(base+26);
+      const realBase=(flags&1)===0?ldataOffset:tdataOffset;
+      const absOffset=realBase+dataOffset;
+      const fmtName=FORMAT_NAMES[fmt]||('unknown('+fmt+')');
+      if(dataLength===0 && fmt===0){
+        const src=sprites[link];
+        sprites.push({index:idx,group,number,axisX,axisY,width,height,
+          format:'linked', paletteIndex, linked:true, linkIndex:link,
+          rgba:src?src.rgba:null, indices:src?src.indices:null,
+          paletteBankIndex: src?src.paletteBankIndex:null});
+        continue;
+      }
+      if(fmt===2||fmt===3||fmt===4){
+        const blob=r.bytes(absOffset,dataLength);
+        const px=blob.subarray(4);
+        let indices;
+        if(fmt===2) indices=rle8Decode(px,width,height);
+        else if(fmt===3) indices=rle5Decode(px,width,height);
+        else indices=lz5Decode(px,width,height);
+        const palette=loadV2Palette(r,paletteOffset,paletteIndex,ldataOffset,forceOpaque,palCache);
+        const rgba=indexedToRGBA(indices,palette);
+        sprites.push({index:idx,group,number,axisX,axisY,width,height,
+          format:fmtName, paletteIndex, linked:false, linkIndex:null, rgba,
+          indices, paletteBankIndex: Math.min(paletteIndex, Math.max(bank.length-1,0))});
+      } else if(fmt===10||fmt===11||fmt===12){
+        const pngBytes=r.bytes(absOffset,dataLength);
+        sprites.push({index:idx,group,number,axisX,axisY,width,height,
+          format:fmtName, paletteIndex, linked:false, linkIndex:null,
+          pngBytes, needsPngDecode:true, indices:null, paletteBankIndex:null});
+      } else {
+        sprites.push({index:idx,group,number,axisX,axisY,width,height,
+          format:fmtName, paletteIndex, linked:false, linkIndex:null, rgba:null,
+          indices:null, paletteBankIndex:null});
+      }
+    }
+    return {version:'2', spriteCount:spriteTotal, paletteCount:paletteTotal, sprites, paletteBank: bank};
+  }
+  function parseSFF(arrayBuffer){
+    const r=makeReader(arrayBuffer), bytes=new Uint8Array(arrayBuffer);
+    if(!checkSignature(bytes)) throw new Error('Not an SFF file (bad "ElecbyteSpr" signature).');
+    const ver0=r.u8(15);
+    if(ver0===1) return parseV1(r);
+    if(ver0===2) return parseV2(r);
+    throw new Error('Unsupported SFF major version: '+ver0);
+  }
+  return { parseSFF, _internal: { indexedToRGBA } };
+})();
+
+// =====================================================================
+// .air parser — straight port of the game's own air_parser.js, including
+// the "trivial blank redefinition" guard, verified against a hand-built
+// sample .air covering flips/clsn/loopstart/comments/redefinition.
+// =====================================================================
+var AirParser = (function () {
+  'use strict';
+  function trim(s) { return s.replace(/^\s+|\s+$/g, ''); }
+  function parseFrameLine(line) {
+    const semi = line.indexOf(';');
+    if (semi !== -1) line = line.slice(0, semi);
+    line = trim(line);
+    if (line === '') return null;
+    const parts = line.split(',').map(trim).filter((p) => p !== '');
+    if (parts.length < 5) return null;
+    const group = Number(parts[0]), image = Number(parts[1]), x = Number(parts[2]), y = Number(parts[3]), time = Number(parts[4]);
+    if ([group, image, x, y, time].some((n) => Number.isNaN(n))) return null;
+    let flipH = false, flipV = false;
+    if (parts[5]) {
+      const f = parts[5].toUpperCase();
+      if (f.includes('H')) flipH = true;
+      if (f.includes('V')) flipV = true;
+    }
+    return { group, image, x, y, time, flipH, flipV, clsn1: [], clsn2: [] };
+  }
+  function parseClsnHeader(line) {
+    const m = line.match(/^\s*[Cc]lsn([12])(\w*)\s*:\s*(\d+)/);
+    if (!m) return null;
+    return { kind: 'clsn' + m[1], isDefault: m[2].toLowerCase() === 'default', count: Number(m[3]) };
+  }
+  function parseClsnBox(line) {
+    const m = line.match(/[Cc]lsn[12]\[(\d+)\]\s*=\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)/);
+    if (!m) return null;
+    return { idx: Number(m[1]), box: [Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5])] };
+  }
+  function parseAir(text) {
+    const actions = {};
+    let current = null, currentNum = null, currentFrames = null;
+    let defaultClsn1 = [], defaultClsn2 = [], pendingClsn1 = null, pendingClsn2 = null, buildingTarget = null;
+    function commitCurrent() {
+      if (current === null) return;
+      const existing = actions[currentNum];
+      const isTrivialBlank = current.frames.length > 0 && current.frames.every((f) => f.group === -1 || f.image === -1);
+      const existingHasContent = existing && existing.frames.some((f) => f.group !== -1 && f.image !== -1);
+      if (!(existingHasContent && isTrivialBlank)) actions[currentNum] = current;
+    }
+    const lines = text.split(/\r?\n/);
+    for (const rawLine of lines) {
+      const trimmed = trim(rawLine);
+      if (trimmed.startsWith(';')) continue;
+      const actionMatch = trimmed.match(/^\[\s*[Bb]egin\s+[Aa]ction\s+(-?\d+)\s*\]/);
+      if (actionMatch) {
+        commitCurrent();
+        currentNum = Number(actionMatch[1]);
+        current = { loopstart: 1, frames: [] };
+        currentFrames = current.frames;
+        defaultClsn1 = []; defaultClsn2 = []; pendingClsn1 = null; pendingClsn2 = null; buildingTarget = null;
+        continue;
+      }
+      if (!current) continue;
+      if (/^[Ll]oopstart/.test(trimmed)) { current.loopstart = currentFrames.length + 1; continue; }
+      const header = parseClsnHeader(trimmed);
+      if (header) {
+        const fresh = [];
+        if (header.isDefault) {
+          if (header.kind === 'clsn1') defaultClsn1 = fresh; else defaultClsn2 = fresh;
+          buildingTarget = header.count > 0 ? fresh : null;
+        } else {
+          if (header.kind === 'clsn1') pendingClsn1 = fresh; else pendingClsn2 = fresh;
+          buildingTarget = header.count > 0 ? fresh : null;
+        }
+        continue;
+      }
+      const clsnBox = parseClsnBox(trimmed);
+      if (clsnBox) { if (buildingTarget) buildingTarget[clsnBox.idx] = clsnBox.box; continue; }
+      const frame = parseFrameLine(trimmed);
+      if (frame) {
+        frame.clsn1 = pendingClsn1 || defaultClsn1;
+        frame.clsn2 = pendingClsn2 || defaultClsn2;
+        currentFrames.push(frame);
+      }
+    }
+    commitCurrent();
+    return actions;
+  }
+  return { parseAir };
+})();
+
+// =====================================================================
+// ZIP writer (STORE method) — validated with the real `unzip` CLI.
+// =====================================================================
+var ZipWriter = (function () {
+  'use strict';
+  const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; }
+    return t;
+  })();
+  function crc32(bytes) { let c = 0xffffffff; for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+  function dosDateTime(date) {
+    date = date || new Date();
+    const time = ((date.getHours() & 0x1f) << 11) | ((date.getMinutes() & 0x3f) << 5) | ((date.getSeconds() >> 1) & 0x1f);
+    const dt = (((date.getFullYear() - 1980) & 0x7f) << 9) | (((date.getMonth() + 1) & 0xf) << 5) | (date.getDate() & 0x1f);
+    return { time, date: dt };
+  }
+  function strToBytes(s) { return new TextEncoder().encode(s); }
+  function buildZip(entries) {
+    const { time, date } = dosDateTime();
+    const chunks = [], central = [];
+    let offset = 0;
+    for (const entry of entries) {
+      const nameBytes = strToBytes(entry.name);
+      const data = entry.data instanceof Uint8Array ? entry.data : new Uint8Array(entry.data);
+      const crc = crc32(data), size = data.length;
+      const local = new DataView(new ArrayBuffer(30));
+      local.setUint32(0, 0x04034b50, true); local.setUint16(4, 20, true); local.setUint16(6, 0, true);
+      local.setUint16(8, 0, true); local.setUint16(10, time, true); local.setUint16(12, date, true);
+      local.setUint32(14, crc, true); local.setUint32(18, size, true); local.setUint32(22, size, true);
+      local.setUint16(26, nameBytes.length, true); local.setUint16(28, 0, true);
+      chunks.push(new Uint8Array(local.buffer), nameBytes, data);
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true);
+      ch.setUint16(8, 0, true); ch.setUint16(10, 0, true); ch.setUint16(12, time, true); ch.setUint16(14, date, true);
+      ch.setUint32(16, crc, true); ch.setUint32(20, size, true); ch.setUint32(24, size, true);
+      ch.setUint16(28, nameBytes.length, true); ch.setUint16(30, 0, true); ch.setUint16(32, 0, true);
+      ch.setUint16(34, 0, true); ch.setUint16(36, 0, true); ch.setUint32(38, 0, true); ch.setUint32(42, offset, true);
+      central.push(new Uint8Array(ch.buffer), nameBytes);
+      offset += 30 + nameBytes.length + size;
+    }
+    const centralStart = offset;
+    let centralSize = 0;
+    for (const c of central) centralSize += c.length;
+    const eocd = new DataView(new ArrayBuffer(22));
+    eocd.setUint32(0, 0x06054b50, true); eocd.setUint16(4, 0, true); eocd.setUint16(6, 0, true);
+    eocd.setUint16(8, entries.length, true); eocd.setUint16(10, entries.length, true);
+    eocd.setUint32(12, centralSize, true); eocd.setUint32(16, centralStart, true); eocd.setUint16(20, 0, true);
+    const all = chunks.concat(central, [new Uint8Array(eocd.buffer)]);
+    let total = 0;
+    for (const a of all) total += a.length;
+    const out = new Uint8Array(total);
+    let p = 0;
+    for (const a of all) { out.set(a, p); p += a.length; }
+    return out;
+  }
+  return { buildZip, crc32 };
+})();
+
+// =====================================================================
+// App
+// =====================================================================
+const $ = (id) => document.getElementById(id);
+
+const sffInput = $('sffInput'), pickSffBtn = $('pickSffBtn'), dropSff = $('dropSff');
+const airInput = $('airInput'), pickAirBtn = $('pickAirBtn'), dropAir = $('dropAir');
+const parseProgress = $('parseProgress'), parseStatusText = $('parseStatusText'), parseStatusPct = $('parseStatusPct'), parseBarFill = $('parseBarFill');
+const parseError = $('parseError');
+const previewCard = $('previewCard'), previewSubhead = $('previewSubhead');
+const paletteRow = $('paletteRow'), paletteSelect = $('paletteSelect'), paletteNote = $('paletteNote');
+const animControls = $('animControls'), actionSelect = $('actionSelect'), playPauseBtn = $('playPauseBtn'), hitboxBtn = $('hitboxBtn');
+const animPreviewWrap = $('animPreviewWrap'), previewCanvas = $('previewCanvas'), actionMeta = $('actionMeta');
+const atlasPreviewWrap = $('atlasPreviewWrap'), atlasCanvas = $('atlasCanvas'), frameInfo = $('frameInfo');
+const noAirNote = $('noAirNote');
+const exportCard = $('exportCard'), basenamePreview = $('basenamePreview'), airNamePreview = $('airNamePreview');
+const modeAtlasBtn = $('modeAtlasBtn'), modeLooseBtn = $('modeLooseBtn'), atlasOpts = $('atlasOpts'), looseOpts = $('looseOpts');
+const runBtn = $('runBtn');
+const progressCard = $('progressCard'), statusText = $('statusText'), statusPct = $('statusPct'), barFill = $('barFill');
+const warnList = $('warnList'), errorCard = $('errorCard');
+const resultCardAtlas = $('resultCardAtlas'), resultCardLoose = $('resultCardLoose');
+
+let sffFile = null, sffResult = null, sffSources = null, sffBaseName = '';
+let airText = null, airActions = null, airFileName = '';
+let selectedPaletteColors = null;
+let currentAtlas = null;
+let exportMode = 'atlas';
+let isRunning = false;
+let activeUrls = [];
+let scratchCanvas = null;
+
+function trackUrl(url) { activeUrls.push(url); return url; }
+function revokeActiveUrls() { activeUrls.forEach(u => URL.revokeObjectURL(u)); activeUrls = []; }
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function nextFrame() { return new Promise(r => requestAnimationFrame(() => setTimeout(r, 0))); }
+function nextPow2(n) { let p = 1; while (p < n) p *= 2; return p; }
+function sanitizeBaseName(filename) {
+  return filename.replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'character';
+}
+
+pickSffBtn.addEventListener('click', () => sffInput.click());
+pickAirBtn.addEventListener('click', () => airInput.click());
+sffInput.addEventListener('change', (e) => { if (e.target.files[0]) handleSffFile(e.target.files[0]); });
+airInput.addEventListener('change', (e) => { if (e.target.files[0]) handleAirFile(e.target.files[0]); });
+
+['dragover','dragenter'].forEach(ev => dropSff.addEventListener(ev, (e) => { e.preventDefault(); dropSff.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => dropSff.addEventListener(ev, (e) => { e.preventDefault(); dropSff.classList.remove('drag'); }));
+dropSff.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) handleSffFile(f); });
+['dragover','dragenter'].forEach(ev => dropAir.addEventListener(ev, (e) => { e.preventDefault(); dropAir.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => dropAir.addEventListener(ev, (e) => { e.preventDefault(); dropAir.classList.remove('drag'); }));
+dropAir.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) handleAirFile(f); });
+
+async function handleSffFile(file) {
+  sffFile = file;
+  sffBaseName = sanitizeBaseName(file.name);
+  $('sffFilename').innerHTML = escapeHtml(file.name) + ' · ' + (file.size/1024).toFixed(1) + ' KB';
+  parseError.innerHTML = '';
+  previewCard.style.display = 'none';
+  exportCard.style.display = 'none';
+  resultCardAtlas.style.display = 'none';
+  resultCardLoose.style.display = 'none';
+  airActions = null; airFileName = ''; $('airFilename').innerHTML = '';
+  selectedPaletteColors = null;
+
+  parseProgress.style.display = 'block';
+  setParseProgress(5, 'Reading file…');
+  await nextFrame();
+  try {
+    const buffer = await file.arrayBuffer();
+    setParseProgress(20, 'Parsing sprites…');
+    await nextFrame();
+    const { result, sources, warnings } = await decodeAndResolve(buffer, setParseProgress);
+    sffResult = result; sffSources = sources;
+    if (warnings.length) console.warn('SFF decode warnings:', warnings);
+    setParseProgress(90, 'Building preview…');
+    await nextFrame();
+    setupPaletteUI();
+    rebuildAtlas();
+    updatePreviewMode();
+    exportCard.style.display = 'block';
+    basenamePreview.textContent = 'sprite_atlas_' + sffBaseName + '.csv / .png';
+    airNamePreview.textContent = sffBaseName + '.air';
+    previewCard.style.display = 'block';
+    setParseProgress(100, 'Done');
+    await nextFrame();
+    parseProgress.style.display = 'none';
+  } catch (err) {
+    parseProgress.style.display = 'none';
+    parseError.innerHTML = '<div class="error"><b>Couldn\'t read this file.</b><br>' + escapeHtml(err.message || String(err)) + '</div>';
+  }
+}
+
+async function handleAirFile(file) {
+  airFileName = file.name;
+  $('airFilename').innerHTML = escapeHtml(file.name) + ' · ' + (file.size/1024).toFixed(1) + ' KB';
+  try {
+    airText = await file.text();
+    airActions = AirParser.parseAir(airText);
+    if (sffResult) {
+      basenamePreview.textContent = 'sprite_atlas_' + sffBaseName + '.csv / .png';
+      updatePreviewMode();
+    }
+  } catch (err) {
+    parseError.innerHTML = '<div class="error"><b>Couldn\'t read the .air file.</b><br>' + escapeHtml(err.message || String(err)) + '</div>';
+  }
+}
+
+function setParseProgress(pct, text) {
+  parseBarFill.style.width = pct + '%';
+  parseStatusPct.textContent = Math.round(pct) + '%';
+  parseStatusText.textContent = text;
+}
+
+async function decodePngBytes(bytes) {
+  const blob = new Blob([bytes], { type: 'image/png' });
+  return await createImageBitmap(blob);
+}
+
+async function decodeAndResolve(buffer, onProgress) {
+  const result = SFFParser.parseSFF(buffer);
+  const warnings = [];
+  const sources = new Array(result.sprites.length).fill(null);
+  const pngIndices = result.sprites.map((s,i)=>s.needsPngDecode?i:-1).filter(i=>i>=0);
+
+  for (let n = 0; n < pngIndices.length; n++) {
+    const i = pngIndices[n];
+    const s = result.sprites[i];
+    try {
+      const bitmap = await decodePngBytes(s.pngBytes);
+      sources[i] = { kind: 'bitmap', bitmap, w: bitmap.width, h: bitmap.height };
+    } catch (e) {
+      warnings.push('Sprite ' + s.group + '_' + s.number + ': PNG decode failed (' + e.message + ')');
+    }
+    if (onProgress) onProgress(20 + (n / Math.max(1,pngIndices.length)) * 40, 'Decoding PNG sprites… ' + (n+1) + '/' + pngIndices.length);
+    if (n % 4 === 0) await nextFrame();
+  }
+
+  for (let i = 0; i < result.sprites.length; i++) {
+    if (sources[i]) continue;
+    const s = result.sprites[i];
+    if (s.rgba && !s.linked) {
+      sources[i] = { kind: 'rgba', data: s.rgba, w: s.width, h: s.height, indices: s.indices, paletteBankIndex: s.paletteBankIndex };
+    }
+  }
+  function resolve(i, seen) {
+    if (sources[i]) return sources[i];
+    seen = seen || new Set();
+    if (seen.has(i)) return null;
+    seen.add(i);
+    const s = result.sprites[i];
+    if (s.linked && s.linkIndex != null && result.sprites[s.linkIndex]) {
+      const src = resolve(s.linkIndex, seen);
+      if (src) sources[i] = src;
+      return src;
+    }
+    return null;
+  }
+  for (let i = 0; i < result.sprites.length; i++) resolve(i);
+
+  return { result, sources, warnings };
+}
+
+function setupPaletteUI() {
+  const bank = sffResult.paletteBank || [];
+  paletteSelect.innerHTML = '';
+  if (bank.length > 1) {
+    bank.forEach((p) => {
+      const opt = document.createElement('option');
+      opt.value = String(p.index);
+      opt.textContent = p.label;
+      paletteSelect.appendChild(opt);
+    });
+    paletteRow.style.display = 'grid';
+    paletteNote.innerHTML = sffResult.version === '1'
+      ? '<div class="note">This SFFv1 file embeds ' + bank.length + ' distinct palettes across its sprites — pick one to recolor every RLE/PCX sprite that uses it.</div>'
+      : '<div class="note">' + bank.length + ' palettes found in this file\'s palette table (its normal alt-color slots) — pick one to recolor.</div>';
+  } else {
+    paletteRow.style.display = 'none';
+    paletteNote.innerHTML = '<div class="note">Only one palette detected — nothing to swap to. (' +
+      (sffResult.version === '1' ? 'SFFv1 files bake one palette per sprite; alt colors normally come from a separate file.' : 'This file\'s palette table has just one entry.') +
+      ')</div>';
+  }
+  selectedPaletteColors = null;
+}
+
+paletteSelect.addEventListener('change', () => {
+  const idx = parseInt(paletteSelect.value, 10);
+  const entry = (sffResult.paletteBank || [])[idx];
+  selectedPaletteColors = entry ? entry.colors : null;
+  rebuildAtlas();
+  if (airActions) renderCurrentFrame(); else drawAtlasPreview();
+});
+
+function effectiveSource(src) {
+  if (!src) return null;
+  if (src.kind === 'bitmap') return src;
+  if (selectedPaletteColors && src.indices) {
+    return { kind: 'rgba', data: SFFParser._internal.indexedToRGBA(src.indices, selectedPaletteColors), w: src.w, h: src.h };
+  }
+  return src;
+}
+
+function rebuildAtlas() {
+  const padding = Math.max(0, parseInt($('padding').value, 10) || 1);
+  const maxWidthSel = $('maxWidth') ? $('maxWidth').value : 'auto';
+
+  const uniqueMap = new Map();
+  const items = [];
+  for (let i = 0; i < sffResult.sprites.length; i++) {
+    const src = sffSources[i];
+    if (!src || src.w === 0 || src.h === 0) continue;
+    if (!uniqueMap.has(src)) {
+      const eff = effectiveSource(src);
+      const item = { src, eff, w: src.w, h: src.h };
+      uniqueMap.set(src, item);
+      items.push(item);
+    }
+  }
+  if (items.length === 0) { currentAtlas = null; return; }
+
+  const totalArea = items.reduce((a, it) => a + (it.w + padding) * (it.h + padding), 0);
+  const maxItemW = Math.max(...items.map(it => it.w));
+  let maxWidth = (maxWidthSel === 'auto' || !maxWidthSel)
+    ? Math.max(128, Math.ceil(Math.sqrt(totalArea * 1.08) / 4) * 4)
+    : parseInt(maxWidthSel, 10);
+  maxWidth = Math.max(maxWidth, maxItemW + padding);
+
+  const sorted = items.slice().sort((a, b) => (b.h - a.h) || (b.w - a.w));
+  let x = 0, y = 0, rowH = 0, usedW = 0;
+  for (const it of sorted) {
+    if (x + it.w > maxWidth) { x = 0; y += rowH + padding; rowH = 0; }
+    it.x = x; it.y = y;
+    x += it.w + padding;
+    rowH = Math.max(rowH, it.h);
+    usedW = Math.max(usedW, x - padding);
+  }
+  let atlasW = usedW, atlasH = y + rowH;
+  if ($('pow2') && $('pow2').checked) { atlasW = nextPow2(atlasW); atlasH = nextPow2(atlasH); }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = atlasW; canvas.height = atlasH;
+  const ctx = canvas.getContext('2d');
+  for (const it of items) {
+    if (it.eff.kind === 'rgba') ctx.putImageData(new ImageData(it.eff.data, it.w, it.h), it.x, it.y);
+    else ctx.drawImage(it.eff.bitmap, it.x, it.y);
+  }
+
+  const lookup = {};
+  const placedFrames = [];
+  const frameRows = [];
+  for (let i = 0; i < sffResult.sprites.length; i++) {
+    const s = sffResult.sprites[i];
+    const src = sffSources[i];
+    if (!src || src.w === 0 || src.h === 0) continue;
+    const item = uniqueMap.get(src);
+    lookup[s.group] = lookup[s.group] || {};
+    lookup[s.group][s.number] = { x: item.x, y: item.y, w: item.w, h: item.h, offX: s.axisX, offY: s.axisY };
+    const key = s.group + '_' + s.number;
+    placedFrames.push({ key, group: s.group, number: s.number, rect: { x: item.x, y: item.y, w: item.w, h: item.h }, pivot: { x: s.axisX, y: s.axisY } });
+    frameRows.push({ x: item.x, y: item.y, w: item.w, h: item.h, offX: s.axisX, offY: s.axisY, group: s.group, no: s.number });
+  }
+
+  const usedArea = items.reduce((a, it) => a + it.w * it.h, 0);
+  currentAtlas = { canvas, width: atlasW, height: atlasH, lookup, placedFrames, frameRows, efficiency: Math.round((usedArea / (atlasW * atlasH)) * 100), uniqueCount: items.length };
+}
+
+function drawAtlasPreview() {
+  if (!currentAtlas) return;
+  atlasCanvas.width = currentAtlas.width;
+  atlasCanvas.height = currentAtlas.height;
+  atlasCanvas.getContext('2d').drawImage(currentAtlas.canvas, 0, 0);
+  const fitW = Math.min(currentAtlas.width, 560);
+  atlasCanvas.style.width = fitW + 'px';
+  atlasCanvas.style.height = (currentAtlas.height * (fitW / currentAtlas.width)) + 'px';
+}
+atlasCanvas.addEventListener('click', (e) => {
+  if (!currentAtlas) return;
+  const r = atlasCanvas.getBoundingClientRect();
+  const scaleX = atlasCanvas.width / r.width, scaleY = atlasCanvas.height / r.height;
+  const px = (e.clientX - r.left) * scaleX, py = (e.clientY - r.top) * scaleY;
+  const hit = currentAtlas.placedFrames.find(f => px >= f.rect.x && px < f.rect.x + f.rect.w && py >= f.rect.y && py < f.rect.y + f.rect.h);
+  if (!hit) { frameInfo.classList.remove('show'); return; }
+  frameInfo.innerHTML =
+    '<div class="row"><span>Frame</span><b>' + hit.key + '</b></div>' +
+    '<div class="row"><span>Position</span><b>' + hit.rect.x + ', ' + hit.rect.y + '</b></div>' +
+    '<div class="row"><span>Size</span><b>' + hit.rect.w + '×' + hit.rect.h + '</b></div>' +
+    '<div class="row"><span>Pivot (axis)</span><b>' + hit.pivot.x + ', ' + hit.pivot.y + '</b></div>';
+  frameInfo.classList.add('show');
+});
+
+let playing = true, showHitboxes = false;
+let currentActionNum = null, currentFrameIdx = 0, elapsedTicks = 0, rafHandle = null, lastTs = null;
+const TICKS_PER_SEC = 60;
+
+function drawSpriteAt(ctx, atlasImg, lookup, group, number, x, y, flipH, flipV, scale) {
+  const g = lookup[group]; const spr = g && g[number];
+  if (!spr) return false;
+  const sx = flipH ? -scale : scale, sy = flipV ? -scale : scale;
+  const inset = 0.5;
+  const ix = Math.min(inset, spr.w / 4), iy = Math.min(inset, spr.h / 4);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(sx, sy);
+  ctx.drawImage(atlasImg, spr.x + ix, spr.y + iy, spr.w - ix * 2, spr.h - iy * 2, -spr.offX + ix, -spr.offY + iy, spr.w - ix * 2, spr.h - iy * 2);
+  ctx.restore();
+  return true;
+}
+
+function computeActionBounds(action) {
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for (const f of action.frames) {
+    const spr = currentAtlas.lookup[f.group] && currentAtlas.lookup[f.group][f.image];
+    if (!spr) continue;
+    const left = f.x - spr.offX, top = f.y - spr.offY;
+    minX=Math.min(minX,left); minY=Math.min(minY,top);
+    maxX=Math.max(maxX,left+spr.w); maxY=Math.max(maxY,top+spr.h);
+  }
+  if (!isFinite(minX)) return { minX:-40, minY:-100, maxX:40, maxY:0 };
+  return { minX, minY, maxX, maxY };
+}
+
+function populateActionSelect() {
+  actionSelect.innerHTML = '';
+  const nums = Object.keys(airActions).map(Number).sort((a,b)=>a-b);
+  nums.forEach((n) => {
+    const opt = document.createElement('option');
+    opt.value = String(n);
+    opt.textContent = 'Action ' + n + ' (' + airActions[n].frames.length + ' fr)';
+    actionSelect.appendChild(opt);
+  });
+  if (nums.length) setAction(nums[0]);
+}
+actionSelect.addEventListener('change', () => setAction(parseInt(actionSelect.value, 10)));
+
+function setAction(num) {
+  currentActionNum = num;
+  currentFrameIdx = 0;
+  elapsedTicks = 0;
+  playing = true;
+  playPauseBtn.textContent = '⏸';
+  updateActionMeta();
+}
+
+function updateActionMeta() {
+  const action = airActions[currentActionNum];
+  if (!action) return;
+  const f = action.frames[currentFrameIdx];
+  actionMeta.style.display = 'flex';
+  actionMeta.innerHTML = '<span>frame ' + (currentFrameIdx+1) + '/' + action.frames.length + '</span>' +
+    '<span>grp ' + (f ? f.group : '–') + ' img ' + (f ? f.image : '–') + ' · ' + (f && f.time === -1 ? 'hold' : (f ? f.time + 'tk' : '')) + '</span>';
+}
+
+playPauseBtn.addEventListener('click', () => {
+  playing = !playing;
+  playPauseBtn.textContent = playing ? '⏸' : '▶';
+});
+hitboxBtn.addEventListener('click', () => {
+  showHitboxes = !showHitboxes;
+  hitboxBtn.classList.toggle('active', showHitboxes);
+});
+
+function renderCurrentFrame() {
+  if (!currentAtlas || !airActions || currentActionNum == null) return;
+  const action = airActions[currentActionNum];
+  if (!action || !action.frames.length) return;
+  const frame = action.frames[currentFrameIdx];
+
+  const ctx = previewCanvas.getContext('2d');
+  const W = previewCanvas.width, H = previewCanvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  ctx.fillRect(0, H*0.85 - 1, W, 2);
+
+  const b = computeActionBounds(action);
+  const bw = Math.max(1, b.maxX - b.minX), bh = Math.max(1, b.maxY - b.minY);
+  const scale = Math.max(1, Math.min((W*0.7)/bw, (H*0.7)/bh, 6));
+  const anchorX = W/2 - ((b.minX+b.maxX)/2) * scale;
+  const anchorY = H*0.85 - b.maxY * scale;
+
+  drawSpriteAt(ctx, currentAtlas.canvas, currentAtlas.lookup, frame.group, frame.image, anchorX + frame.x*scale, anchorY + frame.y*scale, frame.flipH, frame.flipV, scale);
+
+  if (showHitboxes) {
+    const drawBoxes = (boxes, color) => {
+      ctx.strokeStyle = color; ctx.fillStyle = color.replace('1)', '0.18)'); ctx.lineWidth = 1.5;
+      for (const [x1,y1,x2,y2] of boxes) {
+        const bx = anchorX + frame.x*scale + Math.min(x1,x2)*scale*(frame.flipH?-1:1) - (frame.flipH ? Math.abs(x2-x1)*scale : 0);
+        const by = anchorY + frame.y*scale + Math.min(y1,y2)*scale;
+        const bwid = Math.abs(x2-x1)*scale, bhei = Math.abs(y2-y1)*scale;
+        ctx.fillRect(bx, by, bwid, bhei);
+        ctx.strokeRect(bx, by, bwid, bhei);
+      }
+    };
+    drawBoxes(frame.clsn2 || [], 'rgba(79,168,255,1)');
+    drawBoxes(frame.clsn1 || [], 'rgba(255,90,90,1)');
+  }
+  ctx.restore();
+  updateActionMeta();
+}
+
+function animLoop(ts) {
+  if (lastTs == null) lastTs = ts;
+  const dtMs = ts - lastTs;
+  lastTs = ts;
+  if (playing && airActions && currentActionNum != null) {
+    const action = airActions[currentActionNum];
+    if (action && action.frames.length) {
+      let frame = action.frames[currentFrameIdx];
+      if (frame.time !== -1) {
+        elapsedTicks += (dtMs / 1000) * TICKS_PER_SEC;
+        let guard = 0;
+        while (frame.time !== -1 && elapsedTicks >= frame.time && guard < 50) {
+          elapsedTicks -= frame.time;
+          currentFrameIdx += 1;
+          if (currentFrameIdx >= action.frames.length) currentFrameIdx = Math.max(0, action.loopstart - 1);
+          frame = action.frames[currentFrameIdx];
+          guard++;
+        }
+      }
+    }
+    renderCurrentFrame();
+  }
+  rafHandle = requestAnimationFrame(animLoop);
+}
+
+function updatePreviewMode() {
+  if (airActions && Object.keys(airActions).length) {
+    animControls.style.display = 'block';
+    animPreviewWrap.style.display = 'block';
+    actionMeta.style.display = 'flex';
+    atlasPreviewWrap.style.display = 'none';
+    frameInfo.classList.remove('show');
+    noAirNote.style.display = 'none';
+    previewSubhead.textContent = '— live animation (matches your engine\'s Atlas.draw)';
+    populateActionSelect();
+    if (!rafHandle) rafHandle = requestAnimationFrame(animLoop);
+  } else {
+    animControls.style.display = 'none';
+    animPreviewWrap.style.display = 'none';
+    actionMeta.style.display = 'none';
+    atlasPreviewWrap.style.display = 'block';
+    noAirNote.style.display = 'block';
+    previewSubhead.textContent = '— packed atlas (tap a frame)';
+    drawAtlasPreview();
+  }
+}
+
+modeAtlasBtn.addEventListener('click', () => setMode('atlas'));
+modeLooseBtn.addEventListener('click', () => setMode('loose'));
+function setMode(mode) {
+  exportMode = mode;
+  modeAtlasBtn.classList.toggle('active', mode === 'atlas');
+  modeLooseBtn.classList.toggle('active', mode === 'loose');
+  atlasOpts.style.display = mode === 'atlas' ? 'grid' : 'none';
+  looseOpts.style.display = mode === 'loose' ? 'grid' : 'none';
+  runBtn.textContent = mode === 'atlas' ? 'Build game atlas' : 'Build ZIP';
+}
+$('padding').addEventListener('change', rebuildAtlas);
+$('maxWidth').addEventListener('change', rebuildAtlas);
+$('pow2').addEventListener('change', rebuildAtlas);
+
+runBtn.addEventListener('click', async () => {
+  if (isRunning || !sffResult) return;
+  isRunning = true;
+  runBtn.disabled = true;
+  runBtn.textContent = 'Working…';
+  errorCard.innerHTML = '';
+  resultCardAtlas.style.display = 'none';
+  resultCardLoose.style.display = 'none';
+  progressCard.style.display = 'block';
+  warnList.innerHTML = '';
+  setProgress(5, 'Preparing…');
+  await nextFrame();
+  try {
+    if (exportMode === 'loose') await runLooseExport();
+    else await runAtlasExport();
+  } catch (err) {
+    progressCard.style.display = 'none';
+    errorCard.innerHTML = '<div class="error"><b>Export failed.</b><br>' + escapeHtml(err.message || String(err)) + '</div>';
+  } finally {
+    isRunning = false;
+    runBtn.disabled = false;
+    runBtn.textContent = exportMode === 'atlas' ? 'Build game atlas' : 'Build ZIP';
+  }
+});
+
+function setProgress(pct, text) {
+  barFill.style.width = pct + '%';
+  statusPct.textContent = Math.round(pct) + '%';
+  statusText.textContent = text;
+}
+
+function canvasToObjectUrl(c) {
+  return new Promise((resolve, reject) => {
+    c.toBlob((blob) => { if (!blob) { reject(new Error('toBlob failed')); return; } resolve(URL.createObjectURL(blob)); }, 'image/png');
+  });
+}
+function canvasToPngBytes(w, h, draw) {
+  return new Promise((resolve, reject) => {
+    if (!scratchCanvas) scratchCanvas = document.createElement('canvas');
+    const c = scratchCanvas;
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+    draw(ctx);
+    c.toBlob((blob) => {
+      if (!blob) { reject(new Error('toBlob failed')); return; }
+      blob.arrayBuffer().then(buf => resolve(new Uint8Array(buf)));
+    }, 'image/png');
+  });
+}
+
+async function runAtlasExport() {
+  rebuildAtlas();
+  if (!currentAtlas) throw new Error('No decodable sprites were found in this file.');
+
+  setProgress(60, 'Rendering atlas (' + currentAtlas.width + '×' + currentAtlas.height + ')…');
+  await nextFrame();
+
+  revokeActiveUrls();
+  const pngUrl = trackUrl(await canvasToObjectUrl(currentAtlas.canvas));
+
+  const csvHeader = 'spr_x,spr_y,spr_width,spr_height,spr_off_x,spr_off_y,spr_group,spr_no';
+  const csvLines = [csvHeader].concat(currentAtlas.frameRows.map(r => [r.x, r.y, r.w, r.h, r.offX, r.offY, r.group, r.no].join(',')));
+  const csvBlob = new Blob([csvLines.join('\n')], { type: 'text/csv' });
+  const csvUrl = trackUrl(URL.createObjectURL(csvBlob));
+
+  const jsonPayload = {
+    meta: { image: 'sprite_atlas_' + sffBaseName + '.png', size: { w: currentAtlas.width, h: currentAtlas.height }, sffVersion: sffResult.version, spriteCount: sffResult.spriteCount, generated: new Date().toISOString() },
+    frames: currentAtlas.placedFrames,
+  };
+  const jsonBlob = new Blob([JSON.stringify(jsonPayload, null, 2)], { type: 'application/json' });
+  const jsonUrl = trackUrl(URL.createObjectURL(jsonBlob));
+
+  $('downloadPng').href = pngUrl; $('downloadPng').download = 'sprite_atlas_' + sffBaseName + '.png';
+  $('downloadCsv').href = csvUrl; $('downloadCsv').download = 'sprite_atlas_' + sffBaseName + '.csv';
+  $('downloadJson').href = jsonUrl; $('downloadJson').download = sffBaseName + '_atlas.json';
+
+  $('statFrames').textContent = currentAtlas.placedFrames.length + (currentAtlas.uniqueCount !== currentAtlas.placedFrames.length ? ' (' + currentAtlas.uniqueCount + ' unique)' : '');
+  $('statSize').textContent = currentAtlas.width + '×' + currentAtlas.height;
+  $('statEff').textContent = currentAtlas.efficiency + '%';
+
+  setProgress(100, 'Done');
+  await nextFrame();
+  progressCard.style.display = 'none';
+  resultCardAtlas.style.display = 'block';
+  resultCardAtlas.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function runLooseExport() {
+  const dedupe = $('dedupe').checked;
+  const warnings = [];
+  setProgress(30, 'Preparing files…');
+  await nextFrame();
+
+  const uniqueMap = new Map();
+  const fileEntries = [];
+  const dbRows = [];
+  const items = [];
+  for (let i = 0; i < sffResult.sprites.length; i++) {
+    const s = sffResult.sprites[i];
+    const src = sffSources[i];
+    if (!src || src.w === 0 || src.h === 0) {
+      warnings.push('Sprite ' + s.group + '_' + s.number + ': no pixel data, skipped');
+      dbRows.push({ index: i, group: s.group, number: s.number, x_axis: s.axisX, y_axis: s.axisY, width: s.width, height: s.height, format: s.format, palette_index: s.paletteIndex, linked: s.linked, link_index: s.linkIndex, filename: null });
+      continue;
+    }
+    let owner;
+    if (dedupe && uniqueMap.has(src)) owner = uniqueMap.get(src);
+    else {
+      const fname = 'sprites/' + String(i).padStart(5, '0') + '_' + s.group + '_' + s.number + '.png';
+      owner = { index: i, group: s.group, number: s.number, w: src.w, h: src.h, filename: fname, eff: effectiveSource(src) };
+      uniqueMap.set(src, owner);
+      items.push(owner);
+    }
+    dbRows.push({ index: i, group: s.group, number: s.number, x_axis: s.axisX, y_axis: s.axisY, width: s.width, height: s.height, format: s.format, palette_index: s.paletteIndex, linked: s.linked, link_index: s.linkIndex, filename: owner.filename });
+  }
+  if (items.length === 0) throw new Error('No decodable sprites were found in this file.');
+
+  for (let n = 0; n < items.length; n++) {
+    const it = items[n];
+    const bytes = await canvasToPngBytes(it.w, it.h, (ctx) => {
+      if (it.eff.kind === 'rgba') ctx.putImageData(new ImageData(it.eff.data, it.w, it.h), 0, 0);
+      else ctx.drawImage(it.eff.bitmap, 0, 0);
+    });
+    fileEntries.push({ name: it.filename, data: bytes });
+    setProgress(30 + (n / items.length) * 45, 'Encoding PNGs… ' + (n + 1) + '/' + items.length);
+    if (n % 6 === 0) await nextFrame();
+  }
+
+  setProgress(80, 'Writing definitions…');
+  await nextFrame();
+  const dbJson = { version: sffResult.version, sprite_count: sffResult.spriteCount, palette_count: sffResult.paletteCount, unique_files: items.length, sprites: dbRows };
+  fileEntries.push({ name: 'database.json', data: new TextEncoder().encode(JSON.stringify(dbJson, null, 2)) });
+  const csvHeader = 'index,group,number,x_axis,y_axis,width,height,format,palette_index,linked,link_index,filename';
+  const csvLines = [csvHeader].concat(dbRows.map(r => [r.index, r.group, r.number, r.x_axis, r.y_axis, r.width, r.height, r.format, r.palette_index, r.linked, r.link_index == null ? '' : r.link_index, r.filename || ''].join(',')));
+  fileEntries.push({ name: 'database.csv', data: new TextEncoder().encode(csvLines.join('\n')) });
+
+  setProgress(92, 'Building ZIP…');
+  await nextFrame();
+  const zipBytes = ZipWriter.buildZip(fileEntries);
+  const zipBlob = new Blob([zipBytes], { type: 'application/zip' });
+  revokeActiveUrls();
+  const zipUrl = trackUrl(URL.createObjectURL(zipBlob));
+  $('downloadZip').href = zipUrl;
+  $('downloadZip').download = sffBaseName + '_sprites.zip';
+
+  const fileListEl = $('fileList');
+  fileListEl.innerHTML = '';
+  const THUMB_CAP = 60;
+  items.slice(0, THUMB_CAP).forEach((it) => {
+    const row = document.createElement('div'); row.className = 'row';
+    const thumb = document.createElement('canvas'); thumb.className = 'thumb'; thumb.width = it.w; thumb.height = it.h;
+    const tctx = thumb.getContext('2d');
+    if (it.eff.kind === 'rgba') tctx.putImageData(new ImageData(it.eff.data, it.w, it.h), 0, 0);
+    else tctx.drawImage(it.eff.bitmap, 0, 0);
+    const meta = document.createElement('div'); meta.className = 'meta';
+    meta.innerHTML = '<div class="n">' + it.filename.split('/').pop() + '</div><div class="d">' + it.w + '×' + it.h + '</div>';
+    row.appendChild(thumb); row.appendChild(meta); fileListEl.appendChild(row);
+  });
+  if (items.length > THUMB_CAP) {
+    const more = document.createElement('div'); more.className = 'more';
+    more.textContent = '+ ' + (items.length - THUMB_CAP) + ' more files in the ZIP';
+    fileListEl.appendChild(more);
+  }
+
+  $('statFramesL').textContent = sffResult.sprites.length;
+  $('statFilesL').textContent = items.length + ' PNG' + (dedupe && items.length !== sffResult.sprites.length ? ' (deduped)' : '');
+  $('statZipSize').textContent = (zipBytes.length / 1024).toFixed(1) + ' KB';
+  if (warnings.length) warnList.innerHTML = warnings.slice(0, 40).map(w => '<div>' + escapeHtml(w) + '</div>').join('');
+
+  setProgress(100, 'Done');
+  await nextFrame();
+  progressCard.style.display = warnings.length ? 'block' : 'none';
+  resultCardLoose.style.display = 'block';
+  resultCardLoose.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
