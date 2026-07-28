@@ -1,0 +1,265 @@
+{
+  "character": "Chibi Robo",
+  "_notes": {
+    "utilt_dtilt": "This character's source data (SuminI MUGEN template) only authors a single standing side attack (ftilt) plus charged up/down smashes - there is no distinct plain up-tilt/down-tilt animation, so those two slots are intentionally left unfilled rather than duplicating the smash art.",
+    "specialAir": "No distinct airborne special animations exist in the source data; lite-fighter.html already falls back to the grounded specialN/S/U/D move when a character has no *Air variant assigned, so the same 4 specials work in the air automatically.",
+    "throws": "Grab (state 800), Throw Left/Right/Up/Down (802/803/804/805 into 816/818/809/811) exist in the source .cns but this engine has no grab/throw mechanic (see character-mapper.html), so they are not wired into moveset.json - listed here only for reference if grab support is ever added."
+  },
+  "moves": {
+    "idle": {
+      "action": 0,
+      "pose": true,
+      "holdLastFrame": false
+    },
+    "crouch": {
+      "action": 10,
+      "pose": true,
+      "holdLastFrame": true
+    },
+    "walkFwd": {
+      "action": 20,
+      "pose": true,
+      "holdLastFrame": false
+    },
+    "walkBack": {
+      "action": 21,
+      "pose": true,
+      "holdLastFrame": false
+    },
+    "dash": {
+      "action": 100,
+      "pose": true,
+      "holdLastFrame": false
+    },
+    "jumpSquat": {
+      "action": 40,
+      "pose": true,
+      "holdLastFrame": false
+    },
+    "jumpUp": {
+      "action": 41,
+      "pose": true,
+      "holdLastFrame": false
+    },
+    "jumpFall": {
+      "action": 41,
+      "pose": true,
+      "holdLastFrame": false
+    },
+    "guard": {
+      "action": 130,
+      "pose": true,
+      "holdLastFrame": true
+    },
+    "taunt": {
+      "action": 195,
+      "pose": true,
+      "holdLastFrame": false
+    },
+    "hitStand": {
+      "action": 5030,
+      "pose": true,
+      "holdLastFrame": false
+    },
+    "hitAir": {
+      "action": 5030,
+      "pose": true,
+      "holdLastFrame": false
+    },
+    "getUp": {
+      "action": 5100,
+      "pose": true,
+      "holdLastFrame": false
+    },
+    "win": {
+      "action": 0,
+      "pose": true,
+      "holdLastFrame": false
+    },
+    "lose": {
+      "action": 170,
+      "pose": true,
+      "holdLastFrame": false
+    },
+    "jab": {
+      "action": 200,
+      "type": "melee",
+      "attackType": "Jab",
+      "damage": 5,
+      "kbBase": 240,
+      "kbGrowth": 5.5,
+      "angle": 25,
+      "priority": 0
+    },
+    "ftilt": {
+      "action": 240,
+      "type": "melee",
+      "attackType": "Tilt",
+      "damage": 5,
+      "kbBase": 240,
+      "kbGrowth": 5.5,
+      "angle": 25,
+      "priority": 0
+    },
+    "dashAttack": {
+      "action": 215,
+      "type": "melee",
+      "attackType": "Dash Attack",
+      "damage": 9,
+      "kbBase": 320,
+      "kbGrowth": 7.0,
+      "angle": 30,
+      "priority": 1
+    },
+    "crouchAttack": {
+      "action": 400,
+      "type": "melee",
+      "attackType": "Tilt",
+      "damage": 5,
+      "kbBase": 240,
+      "kbGrowth": 5.5,
+      "angle": 25,
+      "priority": 0
+    },
+    "nair": {
+      "action": 600,
+      "type": "melee",
+      "attackType": "Aerial",
+      "damage": 7,
+      "kbBase": 280,
+      "kbGrowth": 6.0,
+      "angle": 30,
+      "priority": 1
+    },
+    "fair": {
+      "action": 601,
+      "type": "melee",
+      "attackType": "Aerial",
+      "damage": 7,
+      "kbBase": 280,
+      "kbGrowth": 6.0,
+      "angle": 30,
+      "priority": 1
+    },
+    "uair": {
+      "action": 602,
+      "type": "melee",
+      "attackType": "Launcher",
+      "damage": 7,
+      "kbBase": 280,
+      "kbGrowth": 6.0,
+      "angle": 30,
+      "priority": 1
+    },
+    "dair": {
+      "action": 603,
+      "type": "melee",
+      "attackType": "Spike/Meteor",
+      "damage": 7,
+      "kbBase": 280,
+      "kbGrowth": 6.0,
+      "angle": 30,
+      "priority": 1
+    },
+    "bair": {
+      "action": 604,
+      "type": "melee",
+      "attackType": "Aerial",
+      "damage": 7,
+      "kbBase": 280,
+      "kbGrowth": 6.0,
+      "angle": 30,
+      "priority": 1
+    },
+    "specialN": {
+      "action": 300,
+      "type": "melee",
+      "attackType": "Projectile",
+      "damage": 14,
+      "kbBase": 420,
+      "kbGrowth": 8.0,
+      "angle": 40,
+      "priority": 3
+    },
+    "specialS": {
+      "action": 305,
+      "type": "melee",
+      "attackType": "Rush Attack",
+      "damage": 14,
+      "kbBase": 420,
+      "kbGrowth": 8.0,
+      "angle": 40,
+      "priority": 3
+    },
+    "specialU": {
+      "action": 310,
+      "type": "melee",
+      "attackType": "Recovery",
+      "damage": 14,
+      "kbBase": 420,
+      "kbGrowth": 8.0,
+      "angle": 40,
+      "priority": 3
+    },
+    "specialD": {
+      "action": 410,
+      "type": "melee",
+      "attackType": "Trap",
+      "damage": 14,
+      "kbBase": 420,
+      "kbGrowth": 8.0,
+      "angle": 40,
+      "priority": 3
+    },
+    "fsmash": {
+      "action": 1001,
+      "type": "melee",
+      "attackType": "Smash Attack",
+      "damage": 16,
+      "kbBase": 460,
+      "kbGrowth": 9.5,
+      "angle": 40,
+      "priority": 2
+    },
+    "usmash": {
+      "action": 1011,
+      "type": "melee",
+      "attackType": "Smash Attack",
+      "damage": 16,
+      "kbBase": 460,
+      "kbGrowth": 9.5,
+      "angle": 40,
+      "priority": 2
+    },
+    "dsmash": {
+      "action": 1016,
+      "type": "melee",
+      "attackType": "Smash Attack",
+      "damage": 16,
+      "kbBase": 460,
+      "kbGrowth": 9.5,
+      "angle": 40,
+      "priority": 2
+    }
+  },
+  "commandMoves": {
+    "moves": [
+      {
+        "key": "finisher",
+        "label": "Giga-Robo",
+        "action": 3000,
+        "type": "melee",
+        "attackType": "Final/Super",
+        "damage": 24,
+        "kbBase": 560,
+        "kbGrowth": 10.5,
+        "angle": 45,
+        "priority": 4,
+        "command": {
+          "motion": "qcf",
+          "button": "special"
+        }
+      }
+    ]
+  }
+}
